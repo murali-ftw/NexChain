@@ -1,0 +1,28 @@
+<div class="audit-page">
+  <header class="audit-page__header">
+    <h1>Audit Log</h1>
+  </header>
+
+  <div class="audit-page__filters">
+    <input class="audit-page__filter" type="text" placeholder="Filter by user..." disabled />
+    <input class="audit-page__filter" type="text" placeholder="Filter by date range..." disabled />
+    <input class="audit-page__filter" type="text" placeholder="Filter by intent type..." disabled />
+  </div>
+
+  <table class="audit-table">
+    <thead>
+      <tr>
+        @for (column of columns; track column) {
+          <th>{{ column }}</th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="audit-table__empty" [attr.colspan]="columns.length">
+          No audit records yet — entries will appear here once queries are logged.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>

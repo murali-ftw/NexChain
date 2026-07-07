@@ -1,0 +1,14 @@
+<div class="suggested">
+  <h2 class="suggested__title">Suggested Questions</h2>
+
+  @for (group of groups; track group.category) {
+    <div class="suggested__group">
+      <h3 class="suggested__category">{{ group.category }}</h3>
+      @for (question of group.questions; track question) {
+        <button type="button" class="suggested__item" (click)="select(question)">
+          {{ question }}
+        </button>
+      }
+    </div>
+  }
+</div>

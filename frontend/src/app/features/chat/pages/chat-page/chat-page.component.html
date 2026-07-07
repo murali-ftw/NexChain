@@ -1,0 +1,27 @@
+<div class="chat-page">
+  <section class="chat-page__conversation">
+    <div class="chat-page__messages">
+      @if (messages.length === 0) {
+        <div class="chat-page__empty">
+          <h2>Ask a supply chain question</h2>
+          <p>
+            Try a suggested question on the right, or ask about an order, shipment, inventory
+            item, or SLA policy.
+          </p>
+        </div>
+      } @else {
+        @for (message of messages; track $index) {
+          <div class="chat-message" [class.chat-message--user]="message.role === 'user'">
+            {{ message.text }}
+          </div>
+        }
+      }
+    </div>
+
+    <app-chat-input (send)="onSend($event)"></app-chat-input>
+  </section>
+
+  <aside class="chat-page__suggestions">
+    <app-suggested-questions (questionSelected)="onSend($event)"></app-suggested-questions>
+  </aside>
+</div>

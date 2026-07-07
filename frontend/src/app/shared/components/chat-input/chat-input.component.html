@@ -1,0 +1,10 @@
+<div class="chat-input">
+  <textarea
+    class="chat-input__field"
+    rows="1"
+    placeholder="Ask about an order, shipment, inventory, or SLA policy..."
+    [(ngModel)]="message"
+    (keydown.enter)="$event.preventDefault(); submit()"
+  ></textarea>
+  <button class="chat-input__send" type="button" (click)="submit()">Send</button>
+</div>

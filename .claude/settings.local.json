@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(npm audit *)",
+      "Bash(npm view *)",
+      "Bash(rsync -a --exclude 'node_modules' --exclude 'dist' --exclude '.angular' frontend/ /tmp/frontend-backup-day1/)",
+      "Bash(npm install *)",
+      "Bash(npx ng *)",
+      "Bash(kill %1)",
+      "Bash(cd /Users/muralik/Documents/Programs/NexChain && diff -rq /tmp/frontend-backup-day1 frontend --exclude node_modules --exclude dist --exclude .angular 2>&1)",
+      "Read(//private/tmp/frontend-backup-day1/**)"
+    ]
+  }
+}

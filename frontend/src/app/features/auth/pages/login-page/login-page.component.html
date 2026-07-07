@@ -1,0 +1,17 @@
+<div class="login">
+  <div class="login__card">
+    <div class="login__logo">SC</div>
+    <h1 class="login__title">Supply Chain Intelligence Co-Pilot</h1>
+    <p class="login__subtitle">Sign in to ask about orders, shipments, inventory and SLAs.</p>
+
+    <form class="login__form" (submit)="$event.preventDefault(); onSignIn()">
+      <label class="login__label" for="email">Email</label>
+      <input class="login__input" id="email" type="email" placeholder="you@company.com" />
+
+      <label class="login__label" for="password">Password</label>
+      <input class="login__input" id="password" type="password" placeholder="••••••••" />
+
+      <button class="login__submit" type="submit">Sign In</button>
+    </form>
+  </div>
+</div>
