@@ -51,3 +51,9 @@ logs/
 # --- OS ---
 .DS_Store
 Thumbs.db
+
+# --- AI service (ai/) ---
+ai/.venv/
+ai/.env
+*.db
+ai/chroma_db/
