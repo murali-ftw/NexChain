@@ -1,0 +1,42 @@
+# Supply Chain Intelligence Co-Pilot — Python dependencies
+# Covers: ai-service (FastAPI + LangGraph), mcp-server, mock-apis
+# See docs/02_technical_requirements.md Section 2 for the full stack rationale.
+
+# --- AI service host ---
+fastapi>=0.115
+uvicorn[standard]>=0.32
+pydantic>=2.9
+
+# --- Agent orchestration ---
+langgraph>=0.2
+langchain>=0.3
+langchain-core>=0.3
+
+# --- MCP tool connectivity ---
+mcp>=1.0
+
+# --- Knowledge Base / RAG ---
+chromadb>=0.5
+sentence-transformers>=3.2
+
+# --- Relational database access ---
+sqlalchemy>=2.0
+psycopg[binary]>=3.2
+
+# --- Text-to-SQL validation ---
+sqlglot>=25.0
+
+# --- Mock enterprise APIs / HTTP client ---
+httpx>=0.27
+
+# --- Config & environment ---
+python-dotenv>=1.0
+
+# --- Observability ---
+opentelemetry-api>=1.27
+opentelemetry-sdk>=1.27
+opentelemetry-instrumentation-fastapi>=0.48b0
+
+# --- Testing ---
+pytest>=8.3
+pytest-asyncio>=0.24

@@ -1,0 +1,53 @@
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Python (ai-service, mcp-server, mock-apis) ---
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Node / Angular (frontend) ---
+node_modules/
+dist/
+.angular/
+npm-debug.log*
+yarn-error.log*
+
+# --- Java / Spring Boot (backend-api) ---
+target/
+build/
+*.class
+*.jar
+!gradle-wrapper.jar
+.gradle/
+HELP.md
+
+# --- Databases / local data ---
+*.sqlite3
+db/data/
+vector-db/data/
+
+# --- Docker ---
+*.override.yml
+
+# --- Logs ---
+*.log
+logs/
+
+# --- IDE ---
+.vscode/
+.idea/
+*.iml
+
+# --- OS ---
+.DS_Store
+Thumbs.db
