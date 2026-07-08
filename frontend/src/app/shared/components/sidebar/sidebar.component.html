@@ -18,5 +18,12 @@
 
   <div class="sidebar__footer">
     <span class="sidebar__user">Signed in as Demo User</span>
+    <span class="sidebar__status" [class]="'sidebar__status--' + backendStatus()">
+      @switch (backendStatus()) {
+        @case ('checking') { Backend: checking... }
+        @case ('up') { Backend: connected }
+        @case ('unreachable') { Backend: unreachable }
+      }
+    </span>
   </div>
 </aside>

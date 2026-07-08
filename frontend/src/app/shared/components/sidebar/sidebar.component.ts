@@ -1,5 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { BackendHealthService } from '../../../core/services/backend-health.service';
+
+type BackendStatus = 'checking' | 'up' | 'unreachable';
 
 @Component({
   selector: 'app-sidebar',
@@ -8,4 +11,15 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
   templateUrl: './sidebar.component.html',
   styleUrl: './sidebar.component.scss',
 })
-export class SidebarComponent {}
+export class SidebarComponent implements OnInit {
+  readonly backendStatus = signal<BackendStatus>('checking');
+
+  constructor(private readonly backendHealthService: BackendHealthService) {}
+
+  ngOnInit(): void {
+    this.backendHealthService.checkHealth().subscribe({
+      next: () => this.backendStatus.set('up'),
+      error: () => this.backendStatus.set('unreachable'),
+    });
+  }
+}
