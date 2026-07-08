@@ -52,7 +52,17 @@
       "Bash('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless --disable-gpu --virtual-time-budget=5000 --dump-dom http://localhost:4200/chat)",
       "Bash(node node_modules/@angular/cli/bin/ng.js test --watch=false --browsers=ChromeHeadless)",
       "Bash(lsof -ti:4200)",
-      "Bash(lsof -ti:8080 -ti:4200)"
+      "Bash(lsof -ti:8080 -ti:4200)",
+      "Bash(git fetch *)",
+      "Bash(docker --version)",
+      "Bash(brew list *)",
+      "Bash(open -a Docker)",
+      "Read(//opt/homebrew/Cellar/postgresql@18/18.4/bin/**)",
+      "Bash(brew --prefix postgresql@18)",
+      "Bash(rm -rf /Users/muralik/Documents/Programs/NexChain/frontend/dist)",
+      "Bash(docker compose *)",
+      "Bash(git check-ignore *)",
+      "Bash(echo \"--- exit code above: $? \\(0 = ignored, 1 = not ignored/tracked -> correct for example file\\) ---\")"
     ]
   }
 }

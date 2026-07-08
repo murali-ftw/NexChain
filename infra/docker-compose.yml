@@ -1,12 +1,12 @@
-version: '3.8'
-
+# Copy infra/.env.example to infra/.env (gitignored) and set a real
+# POSTGRES_PASSWORD before running `docker compose up` — see docs/02_technical_requirements.md §8.
 services:
   postgres:
     image: postgres:15
     container_name: nexchain-postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set — copy infra/.env.example to infra/.env}
       POSTGRES_DB: nexchain
     ports:
       - "5432:5432"
