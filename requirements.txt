@@ -12,8 +12,7 @@ langgraph>=0.2
 langchain>=0.3
 langchain-core>=0.3
 
-# --- MCP tool connectivity ---
-mcp>=1.0
+mcp
 
 # --- Knowledge Base / RAG ---
 chromadb>=0.5
