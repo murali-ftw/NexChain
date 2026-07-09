@@ -1,0 +1,8 @@
+<div class="user-message" role="article" aria-label="Your message">
+  <p class="user-message__text">{{ text }}</p>
+  @if (timestamp) {
+    <time class="user-message__timestamp" [attr.datetime]="timestamp.toISOString()">
+      {{ timestamp | date: 'shortTime' }}
+    </time>
+  }
+</div>

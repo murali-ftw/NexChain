@@ -1,24 +1,46 @@
 <div class="chat-page">
   <section class="chat-page__conversation">
     <div class="chat-page__messages">
-      @if (messages.length === 0) {
+      @if (messages().length === 0) {
         <div class="chat-page__empty">
           <h2>Ask a supply chain question</h2>
           <p>
-            Try a suggested question on the right, or ask about an order, shipment, inventory
-            item, or SLA policy.
+            This co-pilot answers questions about orders, shipments, inventory, SLA policy, and
+            reports — pick a suggested question on the right, or type your own below.
           </p>
         </div>
-      } @else {
-        @for (message of messages; track $index) {
-          <div class="chat-message" [class.chat-message--user]="message.role === 'user'">
-            {{ message.text }}
-          </div>
+      }
+
+      @for (message of messages(); track message.id) {
+        @switch (message.kind) {
+          @case ('user') {
+            <app-user-message [text]="message.text" [timestamp]="message.timestamp" />
+          }
+          @case ('assistant') {
+            <app-assistant-response [response]="message.response" />
+          }
+          @case ('error') {
+            <div class="chat-error" role="alert">
+              <p>{{ message.message }}</p>
+              <button type="button" class="chat-error__retry" (click)="retry(message.retryText)">
+                Retry
+              </button>
+            </div>
+          }
         }
       }
+
+      @if (isLoading()) {
+        <div class="chat-loading" role="status" aria-live="polite">
+          <span class="chat-loading__dot"></span>
+          {{ loadingText() }}
+        </div>
+      }
+
+      <div #scrollAnchor></div>
     </div>
 
-    <app-chat-input (send)="onSend($event)"></app-chat-input>
+    <app-chat-input [disabled]="isLoading()" (send)="onSend($event)"></app-chat-input>
   </section>
 
   <aside class="chat-page__suggestions">

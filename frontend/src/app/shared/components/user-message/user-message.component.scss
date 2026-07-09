@@ -1,0 +1,23 @@
+.user-message {
+  align-self: flex-end;
+  max-width: 70%;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+}
+
+.user-message__text {
+  font-size: 13.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.user-message__timestamp {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.75);
+  text-align: right;
+}

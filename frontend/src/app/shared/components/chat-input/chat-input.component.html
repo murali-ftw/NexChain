@@ -1,10 +1,23 @@
 <div class="chat-input">
+  <label class="chat-input__label" for="chat-message">Message</label>
   <textarea
+    id="chat-message"
     class="chat-input__field"
     rows="1"
     placeholder="Ask about an order, shipment, inventory, or SLA policy..."
+    aria-label="Type your question"
     [(ngModel)]="message"
-    (keydown.enter)="$event.preventDefault(); submit()"
+    [disabled]="disabled"
+    (keydown.enter)="onEnter($event)"
   ></textarea>
-  <button class="chat-input__send" type="button" (click)="submit()">Send</button>
+  <button
+    class="chat-input__send"
+    type="button"
+    [disabled]="isBlank || disabled"
+    [attr.aria-disabled]="isBlank || disabled"
+    aria-label="Send message"
+    (click)="submit()"
+  >
+    Send
+  </button>
 </div>

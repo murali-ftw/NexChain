@@ -8,6 +8,15 @@
   background: var(--color-surface);
 }
 
+.chat-input__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
 .chat-input__field {
   flex: 1;
   resize: none;
@@ -18,6 +27,16 @@
   line-height: 1.4;
   color: var(--color-text);
   background: transparent;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    color: var(--color-text-muted);
+    cursor: not-allowed;
+  }
 }
 
 .chat-input__send {
@@ -29,7 +48,18 @@
   font-weight: 600;
   padding: 8px 18px;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: var(--color-primary-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    background: var(--color-border);
+    color: var(--color-text-muted);
+    cursor: not-allowed;
   }
 }
