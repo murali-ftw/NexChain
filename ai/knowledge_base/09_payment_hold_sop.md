@@ -4,9 +4,12 @@
 
 Standard Operating Procedure for orders blocked or at risk due to
 payment issues — a `payment.payment_status` of `Failed` or `Pending`
-beyond the expected window, or an `invoice.invoice_status` of `Overdue`.
+beyond the expected window, or an `invoice.invoice_status` of
+`Overdue`. This SOP exists to make clear that payment-driven delay is
+handled differently from operational delay: the customer, not NexChain,
+controls resolution time, and the SLA clock reflects that.
 
-## Scope
+## Scope and Applicability
 
 Applies to any `sales_orders` linked to an `invoice` where:
 - `invoice.invoice_status = 'Overdue'`, or
@@ -15,13 +18,43 @@ Applies to any `sales_orders` linked to an `invoice` where:
   standard payment processing window (typically 2 business days for
   card/bank transfer, up to 5 business days for cheque).
 
+Applies across all customer tiers and all `payment_method` values on
+file. Does not apply to orders that have already dispatched before a
+payment failure occurred — those are handled per Step 2's fulfillment
+policy below, not recalled.
+
+## Definitions / Key Terms
+
+- **Overdue invoice** — an `invoice` whose payment was never attempted
+  or completed within the expected window from `invoice_date`.
+- **Failed payment** — a payment attempt that was declined or rejected
+  by the payment gateway, bank, or card issuer.
+- **Pending payment** — a payment attempt that has not yet cleared but
+  has not been explicitly declined; some methods legitimately take
+  several business days.
+- **Credit terms agreement** — a pre-approved arrangement (tracked by
+  Finance/Accounts Receivable, not in the core schema) allowing an
+  order to dispatch despite an outstanding invoice.
+
+## Roles and Responsibilities
+
+- **Accounts Receivable** — owns payment-state confirmation (Step 1),
+  overdue invoice follow-up (Step 4), and escalation past 5–10 business
+  days.
+- **Customer Support Agent** — notifies the customer of payment
+  failures and requests an alternate method or retry (Step 3).
+- **Finance** — approves credit terms exceptions to the default
+  fulfillment policy.
+
 ## Step-by-Step Procedure
 
 ### 1. Confirm the Payment State
 
 Check `invoice.invoice_status` and the linked `payment` row(s) for the
 order via `invoice.order_id`. Note `payment_method` — resolution paths
-differ by method.
+differ by method. Accounts Receivable is the authoritative source for
+payment-gateway-side detail not captured in the core schema (e.g. the
+specific decline reason code).
 
 ### 2. Determine Fulfillment Policy
 
@@ -70,7 +103,38 @@ payment reasons, since the customer controls resolution time.
 date + normal fulfillment lead time) once payment clears, not treated as
 a carrier/warehouse delay.
 
+## Decision Criteria and Thresholds
+
+- Standard payment processing window: 2 business days (card/bank
+  transfer), up to 5 business days (cheque).
+- Escalate to Accounts Receivable: 5 business days unresolved for a
+  failed payment; 10 business days unresolved for an overdue invoice
+  with no attempt.
+- SLA clock: paused, not breached, while a payment hold is legitimately
+  active.
+
+## Exceptions and Edge Cases
+
+- **Customer with a pre-approved credit terms agreement**: dispatch
+  proceeds despite `Overdue` status per Finance's arrangement; this SOP
+  still applies for tracking and eventual payment collection, but not
+  for fulfillment blocking.
+- **Payment fails after dispatch**: the shipment is not recalled;
+  Accounts Receivable pursues payment collection independently while
+  the shipment SOP (Shipment Delay, Customs Hold, etc.) continues
+  unaffected.
+- **Partial payment received**: treat as still `Pending`/`Failed` for
+  fulfillment-blocking purposes unless Finance explicitly approves
+  partial-payment dispatch under a specific customer agreement.
+
+## Revision and Effective Date
+
+Maintained jointly by Accounts Receivable and Finance; reviewed whenever
+standard payment processing windows change (e.g., a new payment gateway
+with different clearing times).
+
 ## Related Documents
 
 - [Order Amendment & Cancellation Policy](./10_order_amendment_cancellation_policy.md)
 - [Customer Notification Policy](./06_customer_notification_policy.md)
+- [SLA Policy](./01_sla_policy.md)

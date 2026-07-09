@@ -6,13 +6,41 @@ Standard Operating Procedure for delays that originate with the
 third-party carrier after a shipment has been dispatched — as opposed to
 customs holds (see [Customs Hold SOP](./03_customs_hold_sop.md)), which
 are a specific carrier-adjacent case with its own dedicated procedure.
+This SOP covers the broader category of in-transit disruption: weather,
+network capacity, mis-routing, and the rare but high-impact
+lost-in-transit case.
 
-## Scope
+## Scope and Applicability
 
 Applies when `shipment.shipment_status = 'In Transit'` (or similar) and
 `carrier_tracking` events indicate the shipment is behind the carrier's
 originally committed transit time, for reasons attributable to the
-carrier rather than customs, inventory, or warehouse processing.
+carrier rather than customs, inventory, or warehouse processing. Applies
+across all carriers NexChain uses and all customer tiers; severity
+classification (below) rather than tier is the primary driver of
+response speed for this SOP, though tier still governs final
+notification and escalation timing per the
+[SLA Policy](./01_sla_policy.md).
+
+## Definitions / Key Terms
+
+- **Inter-checkpoint interval** — the carrier's normal expected time
+  between two consecutive tracking checkpoints; used as the baseline to
+  detect "no progress" delays.
+- **Trace/inquiry** — a formal request opened with the carrier to
+  investigate a shipment's status, distinct from simply monitoring
+  public tracking.
+- **Lost-in-transit** — a shipment with no tracking update for 5 or
+  more days and no carrier-confirmed location, requiring a claims
+  investigation rather than a standard delay estimate.
+
+## Roles and Responsibilities
+
+- **Carrier Relations Analyst** — opens and manages carrier traces
+  (Step 2), classifies severity (Step 3).
+- **Logistics Coordinator / Manager / Regional Operations Director** —
+  owns escalation per severity and tier, particularly for Severe cases
+  which escalate regardless of computed SLA status.
 
 ## Common Causes
 
@@ -30,13 +58,18 @@ Review the latest `carrier_tracking.event_status` and `event_location`
 for the shipment. Carrier-side delay is confirmed when tracking shows no
 progress for longer than the carrier's normal inter-checkpoint interval,
 or an explicit exception event (e.g. "Delayed due to weather",
-"Mis-sorted, rerouting").
+"Mis-sorted, rerouting"). If tracking shows normal progress but the
+shipment will still miss `promised_delivery_date` due to an
+underestimated transit time, this is a planning issue, not a carrier
+delay — document it as such rather than opening a trace unnecessarily.
 
 ### 2. Contact the Carrier
 
 Open a trace/inquiry with the carrier using `shipment.tracking_no` and
 `carrier_name`. Request an updated transit estimate and root cause
-confirmation.
+confirmation. The Carrier Relations Analyst is the single point of
+contact for all trace communications on a given shipment, to avoid
+duplicate or conflicting inquiries to the same carrier.
 
 ### 3. Classify Severity
 
@@ -78,6 +111,38 @@ Notify per the
 [Customer Notification Policy](./06_customer_notification_policy.md).
 For lost-in-transit cases, be explicit that an investigation is
 underway rather than promising a specific delivery date.
+
+## Decision Criteria and Thresholds
+
+- No-progress threshold for "carrier-side delay confirmed": longer than
+  the carrier's normal inter-checkpoint interval.
+- Severity bands: Minor (1–2 days), Moderate (3+ days or mis-route),
+  Severe (5+ days no update, lost-in-transit suspected).
+- Force-majeure escalation trigger for lost-in-transit: unresolved
+  beyond 10 business days.
+
+## Exceptions and Edge Cases
+
+- **Carrier confirms recovery but tracking contradicts it**: trust
+  tracking data over verbal carrier assurance; re-classify severity
+  based on actual checkpoint data, not the carrier's stated intent.
+- **Multiple shipments from the same carrier delayed simultaneously**
+  (systemic network issue): treat as a single Carrier Relations Analyst
+  investigation rather than opening separate traces per shipment, and
+  consider whether the
+  [Force Majeure & Exception Handling Policy](./12_force_majeure_exception_handling_policy.md)
+  applies if the disruption is carrier-network-wide.
+- **Lost-in-transit resolved as "found"**: revert severity from Severe
+  to Moderate or Minor based on the new confirmed location and
+  re-estimate ETA from Step 4; do not leave the case flagged Severe
+  once located.
+
+## Revision and Effective Date
+
+Maintained by Carrier Relations; reviewed whenever a carrier
+relationship changes (new carrier onboarded, service-level agreement
+renegotiated) since inter-checkpoint intervals and typical resolution
+times are carrier-specific.
 
 ## Related Documents
 

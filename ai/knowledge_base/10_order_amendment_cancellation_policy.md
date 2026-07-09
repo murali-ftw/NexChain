@@ -4,7 +4,38 @@
 
 Defines when and how a `sales_orders` record may be amended (quantity,
 items, delivery address, delivery date) or cancelled, and the
-downstream effects on inventory, invoicing, and shipment records.
+downstream effects on inventory, invoicing, and shipment records. This
+policy exists so amendment and cancellation requests are handled
+consistently regardless of which support agent or system surfaces the
+request.
+
+## Scope and Applicability
+
+Applies to every `sales_orders` row from creation through delivery or
+cancellation, across all customer tiers. Amendment rights are governed
+by order stage (`current_status`), not by tier — a PLATINUM customer
+does not get a wider amendment window than a STANDARD customer once an
+order has dispatched, since the constraint is physical (the shipment is
+already in motion), not contractual.
+
+## Definitions / Key Terms
+
+- **Amendment** — any change to `order_items`, delivery address, or
+  `promised_delivery_date` on an existing order, short of cancellation.
+- **Recall / return-to-sender** — a carrier-initiated action to bring a
+  dispatched shipment back rather than complete delivery, functionally
+  a cancellation-after-dispatch.
+- **Terminal state** — an order status (`Delivered` or `Cancelled`)
+  after which no further amendment is possible through this policy.
+
+## Roles and Responsibilities
+
+- **Customer Support Agent** — receives and logs amendment/cancellation
+  requests, executes amendments for `Pending` orders directly.
+- **Fulfillment Operations** — coordinates carrier-side changes for
+  dispatched or in-transit orders (address changes, recalls).
+- **Accounts Receivable** — processes voids and refunds resulting from
+  cancellation.
 
 ## Amendment Windows
 
@@ -51,13 +82,43 @@ downstream effects on inventory, invoicing, and shipment records.
    applicable, refund timeline, per the
    [Customer Notification Policy](./06_customer_notification_policy.md).
 
+## Decision Criteria and Thresholds
+
+- `Pending`: unrestricted amendment and cancellation.
+- `Dispatched`/`In Transit`: item/quantity changes never allowed;
+  address changes only if the carrier's current stage supports it.
+- Recall/return-to-sender: only path for cancelling a dispatched order,
+  and it typically incurs a return shipping cost passed through to
+  standard return-handling accounting.
+
 ## SLA Interaction
 
 A `Cancelled` order's SLA status is `N/A` — it is excluded from breach
 reporting and escalation once cancellation is confirmed. Orders
-cancelled *after* already breaching SLA retain the breach in historical
-`audit_log` records for reporting purposes, but no further escalation
-action is required.
+cancelled *after* already breaching SLA retain the breach as a
+historical fact for internal reporting purposes, but no further
+escalation action is required once the order reaches the `Cancelled`
+terminal state.
+
+## Exceptions and Edge Cases
+
+- **Amendment request arrives while an order is mid-escalation** (SLA
+  `Breached`, actively being worked by a Logistics Manager): amendment
+  and escalation proceed in parallel — do not pause escalation to wait
+  for an amendment decision, since the underlying delay resolution
+  (e.g. customs, carrier) is independent of the requested amendment.
+- **Cancellation requested for an order already in a Return/RMA flow**:
+  not applicable — once `Delivered`, cancellation is no longer possible
+  by definition; redirect to the [Returns / RMA SOP](./11_returns_rma_sop.md).
+- **Partial cancellation** (cancel some `order_items` but not others):
+  treat as an amendment (reduce quantities/items) followed by
+  `total_amount` recomputation, not a full order cancellation.
+
+## Revision and Effective Date
+
+Maintained by Customer Support leadership in coordination with
+Fulfillment Operations; reviewed whenever carrier-supported in-transit
+amendment capabilities change.
 
 ## Related Documents
 
