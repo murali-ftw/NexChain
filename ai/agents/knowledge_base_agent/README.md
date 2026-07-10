@@ -1,5 +1,18 @@
 # Knowledge Base Agent (P3.4, Day 4)
 
+## Status (as of commit)
+
+Retrieval, context assembly, and source metadata are verified working
+across all 13 questions in `test_questions.py` (correct source
+document matched every time, including the flagship customs/HS-code
+question). The completion gate itself — **>=10 questions with a
+graded, LLM-generated answer** — is **PENDING**: 0/13 could be graded
+at commit time because the configured Gemini key returned
+`RESOURCE_EXHAUSTED` (`free_tier` request/token limits of `0`), an
+external quota issue, not a code defect. Re-run
+`python -m ai.agents.knowledge_base_agent.eval` once a working key is
+in `ai/.env` to confirm the gate.
+
 Answers natural-language policy questions from `ai/knowledge_base/`,
 grounded strictly in retrieved context, with sources preserved. Sits on
 top of the P3.3 RAG pipeline (`ai/rag/`). Does **not** build the
