@@ -1,6 +1,11 @@
 import { ChatResponse } from '../models/chat.model';
 
-/** Fixture content only — traceId/sessionId/timestamp are filled in per-request by ChatMockService. */
+/**
+ * Fixture content only — traceId/sessionId/timestamp are filled in at use time.
+ * Since Day 4 (P1.4), the primary chat flow is served by Spring Boot's own mock
+ * (mirrors these fixtures — see ChatService.java); these remain in use only for
+ * the local degraded-response test trigger and component/test fixtures.
+ */
 export type ChatResponseFixture = Omit<ChatResponse, 'traceId' | 'sessionId' | 'timestamp'>;
 
 /** Scenario A (mandatory): the project's flagship delay scenario — problem_statement.md Section 7. */

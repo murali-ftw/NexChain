@@ -2,11 +2,16 @@
 
 ## Project: Supply Chain Intelligence Co-Pilot
 
-Frozen on **Day 2 (P1.2 — Spring Boot Foundation)** by Person 1. Documents every
-endpoint Angular calls on Spring Boot. Where a field's shape is inherited from
-Person 3's frozen `ai/contracts.py` (P3.1), that's noted explicitly. Anything
-marked `PROVISIONAL - REQUIRES TEAM APPROVAL` has NOT been agreed by Person 2
-or Person 3 yet.
+Frozen on **Day 2 (P1.2 — Spring Boot Foundation)** by Person 1, updated on
+**Day 4 (P1.4 — Spring Boot Core APIs)**. Documents every endpoint Angular
+calls on Spring Boot. Where a field's shape is inherited from Person 3's
+frozen `ai/contracts.py` (P3.1), that's noted explicitly. Anything marked
+`PROVISIONAL - REQUIRES TEAM APPROVAL` has NOT been agreed by Person 2 or
+Person 3 yet.
+
+**Day 4 headline change:** `POST /api/chat` is now Angular's real, only
+success path (no more frontend-only mock) — see that section below for the
+full deterministic mock-routing table and verification notes.
 
 ------------------------------------------------------------------------
 
@@ -81,7 +86,7 @@ or Person 3 yet.
     ],
     "sources": [],
     "partial": false,
-    "warnings": ["Day 2 mock response — no real AI pipeline yet (see P1.10, Day 11)."],
+    "warnings": ["Day 4 mock response — no real AI pipeline yet (see P1.10, Day 11)."],
     "error": null
   }
   ```
@@ -98,12 +103,30 @@ or Person 3 yet.
     `docs/04_ui_ux_design.md` §3.2 (Impact table) and the flagship sample in
     `docs/problem_statement.md` §7 both require them. **Needs Person 3 to fold
     these back into the frozen Python contract**, or explicitly reject the
-    addition with an alternative.
+    addition with an alternative. Still unresolved as of Day 4.
   - `traceId`, `sessionId`, `timestamp`, `warnings` are Spring Boot's own
     application-layer envelope — Person 1's addition, not part of Person 3's
     contract.
-- **Day 2 status:** **Controlled mock.** If `query` contains "45892" (case-insensitive), returns the full flagship scenario above. Otherwise returns a minimal generic mock (`answerText` echoes the query, all optional fields null, `slaStatus: "N/A"`). No real intent classification, SQL, RAG, or API calls — that's Person 3's work (P3.7–P3.11).
-- **Owner:** Person 1 (contract + mock). Real implementation: Person 2 (transport) + Person 3 (content), landing at P1.10 (Day 11).
+- **CURRENT DAY 4 IMPLEMENTATION: SPRING BOOT TEMPORARY MOCK RESPONSE.** Deterministic
+  keyword matching in `ChatService.getMockResponse()`, in priority order:
+  1. `query` contains `"45892"` → full flagship delay/SLA-breach scenario (above).
+  2. `query` contains `"sku"` or `"stock"` → inventory scenario (`DATABASE_QUERY`, no impact fields).
+  3. `query` contains `"sla"` or `"escalation"` → SLA/SOP scenario (`KNOWLEDGE_QUERY`, 2 KB sources).
+  4. `query` contains `"warehouse"` or `"report"` → reporting scenario (`DATABASE_QUERY`, prose result).
+  5. Anything else → generic mock (`answerText` echoes the query, all optional fields null, `slaStatus: "N/A"`).
+  No real intent classification, SQL, RAG, or API calls — that's Person 3's work (P3.7–P3.11).
+- **Day 4 status:** this is now Angular's **primary, only** success path for chat — the
+  Day 3 frontend-only `ChatMockService` has been removed. Angular's `ChatApiService`
+  (`frontend/src/app/features/chat/services/chat-api.service.ts`) POSTs here directly via
+  `HttpClient`; verified with a real browser (headless Chrome via CDP) — genuine CORS
+  preflight + POST, 200 response, full structured render, for both manually-typed
+  questions and suggested-question clicks. Two frontend-only local triggers remain by
+  design, per the Day 4 task's explicit allowance for isolated test scenarios that Spring
+  Boot has no reason to simulate itself: a query containing `"simulate error"` rejects
+  locally without an HTTP call, and `"simulate degraded"` returns the local
+  `DEGRADED_RESPONSE` fixture (`partial: true` + a populated `warnings` entry) — both
+  implemented directly in `ChatPageComponent`, not via any mock service.
+- **Owner:** Person 1 (contract + mock + Angular transport). Real AI content: Person 2 (transport) + Person 3 (content), landing at P1.10 (Day 11).
 
 ------------------------------------------------------------------------
 
@@ -123,7 +146,11 @@ or Person 3 yet.
     }
   ]
   ```
-- **Day 2 status:** **Contract stub.** Always returns `[]`. No persistence. Real implementation is P1.7 (Day 7).
+- **CURRENT DAY 4 IMPLEMENTATION: SPRING BOOT TEMPORARY MOCK RESPONSE.** Returns 3
+  fixed, realistic mock records (`HistoryService.getMockHistory()`) — no persistence,
+  no database. Angular's History page is **not** wired to this endpoint yet (out of
+  today's mandatory scope per the Day 4 task; the mandatory integration target was
+  Chat). Real persistence is P1.7 (Day 7).
 - **Owner:** Person 1. No cross-team dependency.
 
 ------------------------------------------------------------------------
@@ -152,7 +179,10 @@ or Person 3 yet.
   ]
   ```
   Field shape mirrors the `audit_log` table in `docs/06_backend_schema.md` §2.14.
-- **Day 2 status:** **Contract stub.** Always returns `[]`. No persistence, no authorization. Real implementation is P1.8 (Day 8).
+- **CURRENT DAY 4 IMPLEMENTATION: SPRING BOOT TEMPORARY MOCK RESPONSE.** Returns 2
+  fixed, realistic mock records (`AuditService.getMockAuditLog()`) covering every
+  documented field, including a non-null `generatedSql` example — no persistence, no
+  authorization. Real persistence is P1.8 (Day 8).
 - **Owner:** Person 1. No cross-team dependency.
 
 ------------------------------------------------------------------------
