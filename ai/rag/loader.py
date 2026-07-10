@@ -63,7 +63,7 @@ def parse_manifest(index_path: Path = INDEX_PATH) -> list[ManifestEntry]:
     return entries
 
 
-def parse_document_body(text: str, fallback_title: str) -> list[Section]:
+def parse_document_body(text: str) -> list[Section]:
     """Split a document's body into sections keyed by its H2 headings.
 
     Content before the first H2 (including the H1 title line) is kept
@@ -95,7 +95,7 @@ def parse_document_body(text: str, fallback_title: str) -> list[Section]:
 def load_document(entry: ManifestEntry, repo_root: Path = REPO_ROOT) -> Document:
     doc_path = repo_root / entry.source_path
     text = doc_path.read_text(encoding="utf-8")
-    sections = parse_document_body(text, fallback_title=entry.title)
+    sections = parse_document_body(text)
     return Document(
         doc_id=entry.doc_id,
         title=entry.title,

@@ -18,11 +18,32 @@
       </tr>
     </thead>
     <tbody>
-      <tr>
-        <td class="audit-table__empty" [attr.colspan]="columns.length">
-          No audit records yet — entries will appear here once queries are logged.
-        </td>
-      </tr>
+      @if (isLoading()) {
+        <tr>
+          <td class="audit-table__empty" [attr.colspan]="columns.length">Loading audit log...</td>
+        </tr>
+      } @else if (errorMessage()) {
+        <tr>
+          <td class="audit-table__empty" [attr.colspan]="columns.length">{{ errorMessage() }}</td>
+        </tr>
+      } @else if (entries().length === 0) {
+        <tr>
+          <td class="audit-table__empty" [attr.colspan]="columns.length">
+            No audit records yet — entries will appear here once queries are logged.
+          </td>
+        </tr>
+      } @else {
+        @for (entry of entries(); track entry.auditId) {
+          <tr>
+            <td>{{ entry.timestamp | date: 'medium' }}</td>
+            <td>{{ entry.user }}</td>
+            <td>{{ entry.rawQuestion }}</td>
+            <td>{{ entry.detectedIntent.join(', ') }}</td>
+            <td>{{ entry.agentsInvoked.join(', ') }}</td>
+            <td>{{ entry.slaResult }}</td>
+          </tr>
+        }
+      }
     </tbody>
   </table>
 </div>

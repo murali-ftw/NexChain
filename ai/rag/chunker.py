@@ -4,8 +4,10 @@ Tokens are approximated by whitespace-split word count (no external
 tokenizer dependency). Chunking respects paragraph boundaries first,
 falling back to sentence boundaries only when a single paragraph alone
 exceeds MAX_CHUNK_TOKENS, so a chunk never ends mid-sentence. Each
-chunk's `section` metadata is the specific H2 heading it starts in
-(the heading of its first unit) - not the whole document's outline.
+chunk's `section` metadata is the join of every distinct H2 heading its
+content spans (in document order), not just the heading it starts in -
+a chunk that crosses a heading boundary must say so, or downstream
+citations (P3.4) would attribute content to the wrong section.
 Overlap is carried between consecutive chunks of the same document only
 and never crosses a document boundary, since chunking runs per-document.
 """
@@ -45,6 +47,11 @@ class _Unit:
 
 def _count_tokens(text: str) -> int:
     return len(text.split())
+
+
+def _join_headings(units: list[_Unit]) -> str:
+    """Unique headings spanned by these units, in first-seen order."""
+    return " | ".join(dict.fromkeys(u.heading for u in units))
 
 
 def _split_paragraphs(text: str) -> list[str]:
@@ -92,7 +99,7 @@ def chunk_document(document: Document) -> list[Chunk]:
             Chunk(
                 doc_id=document.doc_id,
                 title=document.title,
-                section=units[0].heading,
+                section=_join_headings(units),
                 source_path=document.source_path,
                 chunk_index=0,
                 content="\n\n".join(u.text for u in units),
@@ -117,7 +124,7 @@ def chunk_document(document: Document) -> list[Chunk]:
     def flush() -> list[_Unit]:
         nonlocal chunk_index
         content = "\n\n".join(u.text for u in buffer)
-        section = buffer[0].heading
+        section = _join_headings(buffer)
         chunks.append(
             Chunk(
                 doc_id=document.doc_id,
@@ -171,10 +178,13 @@ def chunk_document(document: Document) -> list[Chunk]:
         merged_tokens = _count_tokens(prev.content) + _count_tokens(last.content)
         if merged_tokens <= MAX_CHUNK_TOKENS:
             chunks.pop()
+            merged_headings = dict.fromkeys(
+                prev.section.split(" | ") + last.section.split(" | ")
+            )
             chunks[-1] = Chunk(
                 doc_id=prev.doc_id,
                 title=prev.title,
-                section=prev.section,
+                section=" | ".join(merged_headings),
                 source_path=prev.source_path,
                 chunk_index=prev.chunk_index,
                 content=prev.content + "\n\n" + last.content,

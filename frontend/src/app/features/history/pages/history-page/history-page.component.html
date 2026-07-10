@@ -4,15 +4,19 @@
     <input class="history-page__search" type="text" placeholder="Search past queries..." />
   </header>
 
-  @if (items.length === 0) {
+  @if (isLoading()) {
+    <p class="history-page__empty">Loading query history...</p>
+  } @else if (errorMessage()) {
+    <p class="history-page__empty">{{ errorMessage() }}</p>
+  } @else if (items().length === 0) {
     <p class="history-page__empty">You haven't asked anything yet.</p>
   } @else {
     <ul class="history-page__list">
-      @for (item of items; track item.timestamp) {
+      @for (item of items(); track item.id) {
         <li class="history-item">
           <div class="history-item__question">{{ item.question }}</div>
-          <div class="history-item__summary">{{ item.summary }}</div>
-          <div class="history-item__timestamp">{{ item.timestamp }}</div>
+          <div class="history-item__summary">{{ item.answerSummary }}</div>
+          <div class="history-item__timestamp">{{ item.timestamp | date: 'medium' }}</div>
         </li>
       }
     </ul>
