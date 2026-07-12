@@ -5,13 +5,12 @@
 Retrieval, context assembly, and source metadata are verified working
 across all 13 questions in `test_questions.py` (correct source
 document matched every time, including the flagship customs/HS-code
-question). The completion gate itself — **>=10 questions with a
-graded, LLM-generated answer** — is **PENDING**: 0/13 could be graded
-at commit time because the configured Gemini key returned
-`RESOURCE_EXHAUSTED` (`free_tier` request/token limits of `0`), an
-external quota issue, not a code defect. Re-run
-`python -m ai.agents.knowledge_base_agent.eval` once a working key is
-in `ai/.env` to confirm the gate.
+question). The completion gate — **>=10 questions with a graded,
+LLM-generated answer** — is **MET**: 11/13 passed with `ai/llm_client.py`
+configured for `LLM_PRIMARY_MODEL=gemini-flash-latest` (the two misses
+were client-side read timeouts on individual calls, not auth or source
+failures — a slower default `DEFAULT_TIMEOUT_SECONDS` would likely
+close the gap).
 
 Answers natural-language policy questions from `ai/knowledge_base/`,
 grounded strictly in retrieved context, with sources preserved. Sits on
@@ -62,29 +61,27 @@ If retrieval/assembly succeeds for a question but the LLM call fails
 proves the non-LLM half of the pipeline independently of provider
 availability.
 
-## LLM provider fallback
+## LLM provider
 
-`ai/llm_client.py` is Gemini-primary / Grok-fallback, shared across
-Person 3's agents. It reads config from the environment (see
-`ai/.env.example`):
+`ai/llm_client.py` is Gemini-only (see its module docstring), shared
+across Person 3's agents — there is currently no second-provider
+fallback; a failed call raises `LLMProviderError` directly. It reads
+config from the environment (see `ai/.env.example`):
 
 ```
 LLM_PRIMARY_PROVIDER=gemini
 LLM_PRIMARY_MODEL=
 LLM_PRIMARY_API_KEY=
-
-LLM_FALLBACK_PROVIDER=grok
-LLM_FALLBACK_MODEL=
-LLM_FALLBACK_API_KEY=
 ```
 
 Copy `ai/.env.example` to `ai/.env` (gitignored) and fill in real
-values to run the eval end-to-end. `generate()` tries the primary
-provider; on **any** exception or timeout it tries the fallback; it
-only raises `LLMProviderError` if both fail. This is a different layer
-from the LangGraph `MAX_RETRIES_PER_NODE` policy (`ai/contracts.py`) —
-it swaps LLM backends within one node's call, it does not retry the
-node itself. No keys are hardcoded anywhere.
+values to run the eval end-to-end. `LLM_PRIMARY_MODEL` defaults to
+`gemini-flash-latest` if left blank — pin it to a dated model instead
+once one is chosen for production, since `-latest` aliases can move
+model versions out from under the agent. Note this is a different
+layer from the LangGraph `MAX_RETRIES_PER_NODE` policy
+(`ai/contracts.py`), which retries a whole graph node rather than
+swapping LLM backends within one call. No keys are hardcoded anywhere.
 
 ## Swap point for Person 2's `kb_search`
 

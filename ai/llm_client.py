@@ -30,7 +30,7 @@ if _ENV_PATH.exists():
 
 DEFAULT_TIMEOUT_SECONDS = 20.0
 
-_GEMINI_DEFAULT_MODEL = "gemini-1.5-flash"
+_GEMINI_DEFAULT_MODEL = "gemini-flash-latest"
 
 
 class LLMConfigError(RuntimeError):
