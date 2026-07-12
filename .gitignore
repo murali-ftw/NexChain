@@ -57,3 +57,5 @@ ai/.venv/
 ai/.env
 *.db
 ai/chroma_db/
+
+CLAUDE.md

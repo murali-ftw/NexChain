@@ -8,6 +8,9 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set — copy infra/.env.example to infra/.env}
       POSTGRES_DB: nexchain
+      # Consumed by db/migrations/002_roles.sh (schema doc §3), not by Postgres itself.
+      COPILOT_READONLY_PASSWORD: ${COPILOT_READONLY_PASSWORD:?COPILOT_READONLY_PASSWORD is not set}
+      COPILOT_APP_PASSWORD: ${COPILOT_APP_PASSWORD:?COPILOT_APP_PASSWORD is not set}
     ports:
       - "5432:5432"
     volumes:

@@ -166,22 +166,5 @@ CREATE INDEX idx_audit_log_user ON audit_log(user_id);
 CREATE INDEX idx_audit_log_created ON audit_log(created_at);
 CREATE INDEX idx_audit_log_trace ON audit_log(trace_id);
 
--- Read-only role used exclusively by the Text-to-SQL Agent / db_query MCP tool
--- NOTE: Passwords and database name should be set securely via environment variables
--- or an initialization script wrapper, but provided here as the reference schema commands.
-
--- CREATE ROLE copilot_readonly LOGIN PASSWORD 'copilot_readonly_password';
--- GRANT CONNECT ON DATABASE nexchain TO copilot_readonly;
--- GRANT USAGE ON SCHEMA public TO copilot_readonly;
--- GRANT SELECT ON
---     customers, sales_orders, order_items, inventory, warehouse,
---     shipment, invoice, payment, carrier_tracking, sla_rules,
---     knowledge_documents, knowledge_chunks
--- TO copilot_readonly;
-
--- Read/write role used by Spring Boot for auth + audit persistence
--- CREATE ROLE copilot_app LOGIN PASSWORD 'copilot_app_password';
--- GRANT CONNECT ON DATABASE nexchain TO copilot_app;
--- GRANT USAGE ON SCHEMA public TO copilot_app;
--- GRANT SELECT, INSERT ON audit_log TO copilot_app;
--- GRANT SELECT, INSERT, UPDATE ON users TO copilot_app;
+-- Roles (copilot_readonly, copilot_app) live in 002_roles.sh — they need
+-- passwords from the environment, which a plain .sql file can't read.
