@@ -1,28 +1,59 @@
 package com.nexchain.backend;
 
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 /**
- * Day 4 completion-gate coverage: every contract endpoint returns valid JSON, the chat
- * endpoint resolves each deterministic mock scenario correctly, and Angular's primary
- * round trip (POST /api/chat) rejects a blank/missing query with a clean 4xx body.
+ * Day 4 completion-gate coverage (contract endpoints, chat mock scenarios, validation
+ * errors) plus Day 6 (P1.6) authentication coverage: login issues a real JWT, protected
+ * endpoints (/api/chat/**, /api/audit/**) reject anonymous/invalid callers and accept
+ * valid ones, and public endpoints (/api/health, /api/auth/login) stay open.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 class ApplicationSmokeTests {
 
+    private static final String DEMO_EMAIL = "user@example.com";
+    private static final String DEMO_PASSWORD = "password";
+
     @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
+
+    private String token;
+
+    @BeforeEach
+    void obtainToken() throws Exception {
+        token = login(DEMO_EMAIL, DEMO_PASSWORD);
+    }
+
+    private String login(String email, String password) throws Exception {
+        MvcResult result =
+                mockMvc.perform(
+                                post("/api/auth/login")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(
+                                                """
+                                                {"email": "%s", "password": "%s"}
+                                                """
+                                                        .formatted(email, password)))
+                        .andExpect(status().isOk())
+                        .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).get("accessToken").asText();
+    }
 
     @Test
     void healthReturnsUp() throws Exception {
@@ -36,6 +67,7 @@ class ApplicationSmokeTests {
     void chatWithFlagshipOrderReturnsFullMockScenario() throws Exception {
         mockMvc.perform(
                         post("/api/chat")
+                                .header("Authorization", "Bearer " + token)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         """
@@ -55,6 +87,7 @@ class ApplicationSmokeTests {
     void chatWithInventoryQueryReturnsInventoryMock() throws Exception {
         mockMvc.perform(
                         post("/api/chat")
+                                .header("Authorization", "Bearer " + token)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
                                         {"query": "Is SKU-1001 in stock?"}
@@ -69,6 +102,7 @@ class ApplicationSmokeTests {
     void chatWithSlaQueryReturnsSlaPolicyMock() throws Exception {
         mockMvc.perform(
                         post("/api/chat")
+                                .header("Authorization", "Bearer " + token)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         """
@@ -84,6 +118,7 @@ class ApplicationSmokeTests {
     void chatWithReportingQueryReturnsReportingMock() throws Exception {
         mockMvc.perform(
                         post("/api/chat")
+                                .header("Authorization", "Bearer " + token)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         """
@@ -98,6 +133,7 @@ class ApplicationSmokeTests {
     void chatWithUnrecognizedQueryReturnsGenericMock() throws Exception {
         mockMvc.perform(
                         post("/api/chat")
+                                .header("Authorization", "Bearer " + token)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
                                         {"query": "What time is it?"}
@@ -111,6 +147,7 @@ class ApplicationSmokeTests {
     void chatRejectsBlankQuery() throws Exception {
         mockMvc.perform(
                         post("/api/chat")
+                                .header("Authorization", "Bearer " + token)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
                                         {"query": ""}
@@ -122,18 +159,26 @@ class ApplicationSmokeTests {
 
     @Test
     void chatRejectsMissingQuery() throws Exception {
-        mockMvc.perform(post("/api/chat").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        mockMvc.perform(
+                        post("/api/chat")
+                                .header("Authorization", "Bearer " + token)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{}"))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void chatRejectsMalformedJson() throws Exception {
-        mockMvc.perform(post("/api/chat").contentType(MediaType.APPLICATION_JSON).content("not-json"))
+        mockMvc.perform(
+                        post("/api/chat")
+                                .header("Authorization", "Bearer " + token)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("not-json"))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    void loginReturnsMockToken() throws Exception {
+    void loginReturnsValidJwt() throws Exception {
         mockMvc.perform(
                         post("/api/auth/login")
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -142,8 +187,12 @@ class ApplicationSmokeTests {
                                         {"email": "user@example.com", "password": "password"}
                                         """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken").value("mock-token"))
-                .andExpect(jsonPath("$.user.email").value("user@example.com"));
+                // 3 base64url segments separated by dots: header.payload.signature.
+                .andExpect(jsonPath("$.accessToken").value(matchesPattern("^[\\w-]+\\.[\\w-]+\\.[\\w-]+$")))
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.expiresIn").value(3600))
+                .andExpect(jsonPath("$.user.email").value("user@example.com"))
+                .andExpect(jsonPath("$.user.role").value("USER"));
     }
 
     @Test
@@ -159,15 +208,83 @@ class ApplicationSmokeTests {
     }
 
     @Test
-    void unmappedRouteReturnsCleanNotFound() throws Exception {
-        mockMvc.perform(get("/api/nonexistent"))
+    void loginRejectsWrongPassword() throws Exception {
+        mockMvc.perform(
+                        post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {"email": "user@example.com", "password": "wrong-password"}
+                                        """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.message").value("Invalid email or password"));
+    }
+
+    @Test
+    void loginRejectsUnknownUser() throws Exception {
+        mockMvc.perform(
+                        post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {"email": "nobody@example.com", "password": "password"}
+                                        """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Invalid email or password"));
+    }
+
+    @Test
+    void chatRejectsAnonymousRequest() throws Exception {
+        mockMvc.perform(
+                        post("/api/chat")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {"query": "Where is order SO-45892?"}
+                                        """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401));
+    }
+
+    @Test
+    void chatRejectsInvalidToken() throws Exception {
+        mockMvc.perform(
+                        post("/api/chat")
+                                .header("Authorization", "Bearer not-a-real-token")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {"query": "Where is order SO-45892?"}
+                                        """))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void auditRejectsAnonymousRequest() throws Exception {
+        mockMvc.perform(get("/api/audit")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void historyRejectsAnonymousRequest() throws Exception {
+        mockMvc.perform(get("/api/chat/history")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void unmappedRouteReturnsCleanNotFoundForAuthenticatedCaller() throws Exception {
+        mockMvc.perform(get("/api/nonexistent").header("Authorization", "Bearer " + token))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404));
     }
 
     @Test
+    void unmappedRouteReturnsUnauthorizedForAnonymousCaller() throws Exception {
+        // Security's authorization check runs before route resolution, so an anonymous
+        // caller never learns whether the path exists — same as any other protected route.
+        mockMvc.perform(get("/api/nonexistent")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void historyReturnsMockRecords() throws Exception {
-        mockMvc.perform(get("/api/chat/history"))
+        mockMvc.perform(get("/api/chat/history").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(3)))
                 .andExpect(jsonPath("$[0].question").exists())
@@ -177,7 +294,7 @@ class ApplicationSmokeTests {
 
     @Test
     void auditReturnsMockRecords() throws Exception {
-        mockMvc.perform(get("/api/audit"))
+        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[0].traceId").exists())

@@ -1,6 +1,7 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { BackendHealthService } from '../../../core/services/backend-health.service';
+import { AuthService } from '../../../core/services/auth.service';
 
 type BackendStatus = 'checking' | 'up' | 'unreachable';
 
@@ -14,12 +15,19 @@ type BackendStatus = 'checking' | 'up' | 'unreachable';
 export class SidebarComponent implements OnInit {
   readonly backendStatus = signal<BackendStatus>('checking');
 
-  constructor(private readonly backendHealthService: BackendHealthService) {}
+  constructor(
+    private readonly backendHealthService: BackendHealthService,
+    readonly authService: AuthService,
+  ) {}
 
   ngOnInit(): void {
     this.backendHealthService.checkHealth().subscribe({
       next: () => this.backendStatus.set('up'),
       error: () => this.backendStatus.set('unreachable'),
     });
+  }
+
+  onLogout(): void {
+    this.authService.logout();
   }
 }

@@ -14,3 +14,10 @@ app:
   cors:
     # Comma-separated list; Angular dev server default port. No wildcard.
     allowed-origins: http://localhost:4200
+  jwt:
+    # Dev-only default (HS256 needs >= 32 bytes). Override via the JWT_SECRET
+    # env var in any real deployment — see docs/02_technical_requirements.md §8.
+    secret: ${JWT_SECRET:dev-only-secret-do-not-use-in-production-replace-via-JWT_SECRET-env-var}
+    # Seconds. docs/api_contracts.md's frozen POST /api/auth/login contract
+    # already documents expiresIn: 3600 — keep this in sync with that.
+    expiration-seconds: 3600

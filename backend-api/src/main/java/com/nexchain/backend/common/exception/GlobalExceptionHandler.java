@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -43,6 +44,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoHandlerFoundException.class)
     public ResponseEntity<ErrorResponse> handleNoHandlerFound(NoHandlerFoundException ex, HttpServletRequest request) {
         return build(HttpStatus.NOT_FOUND, "No endpoint for " + ex.getHttpMethod() + " " + ex.getRequestURL(), request);
+    }
+
+    /**
+     * Covers {@code AuthenticationManager.authenticate()} failures from
+     * {@code AuthService.login()} (bad email/password) — a deliberately generic
+     * message so the response never reveals whether the email or the password
+     * was wrong. Distinct from {@link com.nexchain.backend.auth.security.RestAuthenticationEntryPoint},
+     * which handles missing/invalid JWTs on already-past-login protected requests.
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthenticationException(
+            AuthenticationException ex, HttpServletRequest request) {
+        return build(HttpStatus.UNAUTHORIZED, "Invalid email or password", request);
     }
 
     @ExceptionHandler(Exception.class)

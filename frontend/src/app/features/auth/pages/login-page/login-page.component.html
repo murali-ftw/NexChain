@@ -6,12 +6,36 @@
 
     <form class="login__form" (submit)="$event.preventDefault(); onSignIn()">
       <label class="login__label" for="email">Email</label>
-      <input class="login__input" id="email" type="email" placeholder="you@company.com" />
+      <input
+        class="login__input"
+        id="email"
+        name="email"
+        type="email"
+        autocomplete="email"
+        placeholder="you@company.com"
+        [(ngModel)]="email"
+        [disabled]="submitting()"
+      />
 
       <label class="login__label" for="password">Password</label>
-      <input class="login__input" id="password" type="password" placeholder="••••••••" />
+      <input
+        class="login__input"
+        id="password"
+        name="password"
+        type="password"
+        autocomplete="current-password"
+        placeholder="••••••••"
+        [(ngModel)]="password"
+        [disabled]="submitting()"
+      />
 
-      <button class="login__submit" type="submit">Sign In</button>
+      @if (errorMessage()) {
+        <p class="login__error" role="alert">{{ errorMessage() }}</p>
+      }
+
+      <button class="login__submit" type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Signing in...' : 'Sign In' }}
+      </button>
     </form>
   </div>
 </div>

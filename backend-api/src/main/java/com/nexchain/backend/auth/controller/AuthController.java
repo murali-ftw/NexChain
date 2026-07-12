@@ -21,6 +21,6 @@ public class AuthController {
 
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
-        return authService.mockLogin(request);
+        return authService.login(request);
     }
 }
