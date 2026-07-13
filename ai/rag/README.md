@@ -46,13 +46,21 @@ Cross-referenced against Person 2's work on `dev` before starting
   table (doc_id, title, doc_type, source_path, description) as the
   authoritative document list — not a directory scan — so ingestion
   stays in sync with what P3.2 declared ready.
-- **Chunking**: `chunker.py` flattens each document's H2 sections into
-  a single (word, heading) stream, then slides a 500-800 "token"
-  window (word count as a token proxy — no extra tokenizer dependency)
-  with 100-token overlap across it. Each chunk's `section` metadata is
-  the join of every H2 heading it spans, so section context survives
-  chunk boundaries. Short documents (whole doc < 500 words) yield one
-  undersized chunk — unavoidable, noted rather than padded.
+- **Chunking**: `chunker.py` splits each H2 section into paragraph-level
+  units first (word count as a token proxy — no extra tokenizer
+  dependency); a paragraph is only broken further, into sentence-level
+  units, if it alone exceeds `MAX_CHUNK_TOKENS` (800), so a chunk never
+  ends mid-sentence. For documents whose total content already fits in
+  800 tokens, chunking short-circuits to a single chunk. Longer
+  documents get their chunk count decided up front
+  (`TARGET_CHUNK_TOKENS` = 650) and are sized toward that target rather
+  than greedily filled, with the last flushed unit(s) worth ~100 tokens
+  (`OVERLAP_TOKENS`) carried into the next chunk; a final undersized
+  trailing chunk (< `MIN_CHUNK_TOKENS`, 500) is merged into its
+  predecessor if that stays within 800 tokens. Each chunk's `section`
+  metadata is the join of every H2 heading it spans, so section context
+  survives chunk boundaries. A short document (total < 500 tokens)
+  yields one undersized chunk — unavoidable, noted rather than padded.
 - **Embedding**: `embedder.py` uses `sentence-transformers`
   (`all-MiniLM-L6-v2`), loaded once via `lru_cache`. No external LLM
   API calls.

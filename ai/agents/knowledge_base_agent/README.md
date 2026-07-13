@@ -6,11 +6,12 @@ Retrieval, context assembly, and source metadata are verified working
 across all 13 questions in `test_questions.py` (correct source
 document matched every time, including the flagship customs/HS-code
 question). The completion gate — **>=10 questions with a graded,
-LLM-generated answer** — is **MET**: 11/13 passed with `ai/llm_client.py`
-configured for `LLM_PRIMARY_MODEL=gemini-flash-latest` (the two misses
-were client-side read timeouts on individual calls, not auth or source
-failures — a slower default `DEFAULT_TIMEOUT_SECONDS` would likely
-close the gap).
+LLM-generated answer** — is **MET**: 13/13 passed (live run, Day 6)
+with `ai/llm_client.py` configured for `LLM_PRIMARY_MODEL=gemini-flash-latest`.
+The flagship customs/HS-code answer was independently checked against
+`ai/knowledge_base/03_customs_hold_sop.md` and reproduces all 7
+resolution steps and every specific fact (escalation timing, default
+revised-ETA, notification window) with no hallucination.
 
 Answers natural-language policy questions from `ai/knowledge_base/`,
 grounded strictly in retrieved context, with sources preserved. Sits on
