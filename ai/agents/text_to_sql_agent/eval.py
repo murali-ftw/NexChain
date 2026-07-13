@@ -9,22 +9,30 @@ not execution results.
 
 Run from repo root:
     python -m ai.agents.text_to_sql_agent.eval
+    python -m ai.agents.text_to_sql_agent.eval --ids 21,24,27   # targeted re-run
 
-Gate (docs/team_plan.md P3.6): at least 15 of the 20 questions must
-generate correct, validated SQL. P3.5 owns proving the code-path this
-gate measures; live-DB execution is a separate, later verification.
+Gate (docs/team_plan.md P3.6): at least 15 of the original 20 baseline
+questions must generate correct, validated SQL — measured against
+TEST_QUESTIONS[:GATE_BASELINE_COUNT] specifically, since the set has
+since grown with Day 6's harder questions (dates/warehouse/delay).
+P3.5 owns proving the code-path this gate measures; live-DB execution
+is a separate, later verification.
 """
 
 from __future__ import annotations
 
+import argparse
 import re
 import time
+from collections import defaultdict
 
 from ai.agents.text_to_sql_agent.agent import TextToSQLResult, generate_sql
-from ai.agents.text_to_sql_agent.test_questions import TEST_QUESTIONS
+from ai.agents.text_to_sql_agent.test_questions import (
+    GATE_BASELINE_COUNT,
+    GATE_THRESHOLD,
+    TEST_QUESTIONS,
+)
 from ai.llm_client import LLMConfigError, LLMProviderError
-
-GATE_THRESHOLD = 15
 
 # Test-harness pacing only (not agent/provider logic — llm_client.py is
 # untouched): keeps this eval's sequential LLM calls from tripping
@@ -87,16 +95,31 @@ def _generate_with_rate_limit_retry(question: str) -> TextToSQLResult:
     raise last_exc
 
 
-def run() -> None:
+def run(only_ids: set[int] | None = None) -> None:
+    """Run the eval. `only_ids` (1-based question numbers) restricts the run
+    to a subset, for cheap targeted re-runs after a prompt/schema fix."""
+    cases = (
+        list(enumerate(TEST_QUESTIONS, start=1))
+        if only_ids is None
+        else [(i, c) for i, c in enumerate(TEST_QUESTIONS, start=1) if i in only_ids]
+    )
+    total_run = len(cases)
     passed = 0
+    baseline_passed = 0
+    baseline_total = 0
     llm_unavailable = False
+    category_stats: dict[str, list[int]] = defaultdict(lambda: [0, 0])  # [passed, total]
 
-    for i, case in enumerate(TEST_QUESTIONS, start=1):
+    for n, (i, case) in enumerate(cases, start=1):
         question = str(case["question"])
         expected_tables = set(case["expected_tables"])  # type: ignore[arg-type]
         expects_join = case["expects_join"]
         expects_aggregation = case["expects_aggregation"]
-        print(f"\n[{i}/{len(TEST_QUESTIONS)}] Q: {question}")
+        category = str(case["category"])
+        is_baseline = i <= GATE_BASELINE_COUNT
+        if is_baseline:
+            baseline_total += 1
+        print(f"\n[{n}/{total_run}] (#{i}, {category}) Q: {question}")
 
         try:
             result = _generate_with_rate_limit_retry(question)
@@ -104,7 +127,8 @@ def run() -> None:
             llm_unavailable = True
             print(f"  LLM call failed: {exc}")
             print("  SKIPPED (needs a working LLM provider to grade pass/fail)")
-            if i < len(TEST_QUESTIONS):
+            category_stats[category][1] += 1
+            if n < total_run:
                 time.sleep(SLEEP_BETWEEN_QUESTIONS_SECONDS)
             continue
 
@@ -120,10 +144,14 @@ def run() -> None:
             print(f"  reason: {result.reason}")
         print("  PASS" if ok else "  FAIL")
 
+        category_stats[category][1] += 1
         if ok:
             passed += 1
+            category_stats[category][0] += 1
+            if is_baseline:
+                baseline_passed += 1
 
-        if i < len(TEST_QUESTIONS):
+        if n < total_run:
             time.sleep(SLEEP_BETWEEN_QUESTIONS_SECONDS)
 
     print(f"\n{'=' * 60}")
@@ -135,12 +163,36 @@ def run() -> None:
             "LLM_PRIMARY_MODEL=<model>) in ai/.env, then re-run:\n"
             "    python -m ai.agents.text_to_sql_agent.eval"
         )
-    print(
-        f"Gate: {passed}/{len(TEST_QUESTIONS)} questions passed "
-        f"(need >= {GATE_THRESHOLD} with valid, allowlisted, correctly-tabled SQL)."
-    )
-    print("GATE MET" if passed >= GATE_THRESHOLD else "GATE NOT MET")
+
+    print("\nPer-category breakdown:")
+    for category in sorted(category_stats):
+        cat_passed, cat_total = category_stats[category]
+        print(f"  {category:12} {cat_passed}/{cat_total}")
+
+    print(f"\nOverall: {passed}/{total_run} questions passed this run.")
+    if baseline_total:
+        print(
+            f"P3.6 gate (original {GATE_BASELINE_COUNT}-question baseline): "
+            f"{baseline_passed}/{baseline_total} passed "
+            f"(need >= {GATE_THRESHOLD})."
+        )
+        print("GATE MET" if baseline_passed >= GATE_THRESHOLD else "GATE NOT MET")
+    else:
+        print("(No baseline questions in this run — gate not evaluated.)")
+
+
+def _parse_ids(raw: str) -> set[int]:
+    return {int(x.strip()) for x in raw.split(",") if x.strip()}
 
 
 if __name__ == "__main__":
-    run()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--ids",
+        type=str,
+        default=None,
+        help="Comma-separated 1-based question numbers to re-run (e.g. 21,24,27). "
+        "Omit to run the full set.",
+    )
+    args = parser.parse_args()
+    run(only_ids=_parse_ids(args.ids) if args.ids else None)
