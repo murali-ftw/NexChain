@@ -59,7 +59,7 @@ def generate_sql(question: str, intent_hint: str | None = None) -> TextToSQLResu
                 question,
                 SCHEMA_CONTEXT,
                 previous_sql=previous_sql or "",
-                failure_reason=result.reason if result else "unknown",
+                failure_reason=result.reason if result and result.reason else "unknown",
                 intent_hint=intent_hint,
             )
 

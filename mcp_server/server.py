@@ -28,7 +28,7 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import Any
+from typing import Any, Literal, get_args
 
 from mcp.server.fastmcp import FastMCP
 from pydantic_core import to_jsonable_python
@@ -102,5 +102,11 @@ def get_order(order_no: str) -> dict[str, Any]:
     return to_jsonable_python(order)
 
 
+_Transport = Literal["stdio", "sse", "streamable-http"]
+_VALID_TRANSPORTS = get_args(_Transport)
+
 if __name__ == "__main__":
-    mcp.run(transport=os.environ.get("MCP_TRANSPORT") or "stdio")
+    transport = os.environ.get("MCP_TRANSPORT") or "stdio"
+    if transport not in _VALID_TRANSPORTS:
+        raise ValueError(f"MCP_TRANSPORT must be one of {_VALID_TRANSPORTS}, got {transport!r}")
+    mcp.run(transport=transport)  # type: ignore[arg-type]

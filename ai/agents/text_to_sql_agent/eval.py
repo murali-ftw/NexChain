@@ -112,7 +112,7 @@ def run(only_ids: set[int] | None = None) -> None:
 
     for n, (i, case) in enumerate(cases, start=1):
         question = str(case["question"])
-        expected_tables = set(case["expected_tables"])  # type: ignore[arg-type]
+        expected_tables = set(case["expected_tables"])  # type: ignore[call-overload]
         expects_join = case["expects_join"]
         expects_aggregation = case["expects_aggregation"]
         category = str(case["category"])

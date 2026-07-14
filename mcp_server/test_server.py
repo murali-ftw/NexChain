@@ -16,10 +16,18 @@ from typing import Any
 
 import pytest
 from mcp.shared.memory import create_connected_server_and_client_session
+from mcp.types import TextContent
 
 from ai_service.tools import db
 from ai_service.tools.errors import ToolUnavailable
 from mcp_server.server import mcp
+
+
+def _error_text(content: list[Any]) -> str:
+    """Every error result here is server-generated TextContent; narrow it for mypy."""
+    first = content[0]
+    assert isinstance(first, TextContent)
+    return first.text
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -36,7 +44,7 @@ async def call(tool: str, **arguments: Any) -> Any:
     async with create_connected_server_and_client_session(mcp._mcp_server) as client:
         result = await client.call_tool(tool, arguments)
         if result.isError:
-            raise AssertionError(result.content[0].text)
+            raise AssertionError(_error_text(result.content))
         return result.structuredContent
 
 
@@ -83,7 +91,7 @@ async def test_unknown_order_is_a_controlled_error_not_a_crash() -> None:
     async with create_connected_server_and_client_session(mcp._mcp_server) as client:
         result = await client.call_tool("get_order", {"order_no": "SO-NOPE"})
     assert result.isError
-    assert "no order SO-NOPE" in result.content[0].text
+    assert "no order SO-NOPE" in _error_text(result.content)
 
 
 @pytest.mark.asyncio
@@ -91,4 +99,4 @@ async def test_a_broken_query_is_a_controlled_error_not_a_crash() -> None:
     async with create_connected_server_and_client_session(mcp._mcp_server) as client:
         result = await client.call_tool("db_query", {"sql": "SELECT * FROM no_such_table"})
     assert result.isError
-    assert "db_query" in result.content[0].text
+    assert "db_query" in _error_text(result.content)
