@@ -1,10 +1,12 @@
-import { Component, ElementRef, ViewChild, signal } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, signal } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { timer } from 'rxjs';
 import { ChatInputComponent } from '../../../../shared/components/chat-input/chat-input.component';
 import { UserMessageComponent } from '../../../../shared/components/user-message/user-message.component';
 import { AssistantResponseComponent } from '../../../../shared/components/assistant-response/assistant-response.component';
 import { SuggestedQuestionsComponent } from '../../components/suggested-questions/suggested-questions.component';
 import { ChatApiService } from '../../services/chat-api.service';
+import { HistoryApiService } from '../../../history/services/history-api.service';
 import { DEGRADED_RESPONSE } from '../../data/chat-fixtures';
 import { ChatMessage, ChatResponse } from '../../models/chat.model';
 
@@ -15,18 +17,55 @@ import { ChatMessage, ChatResponse } from '../../models/chat.model';
   templateUrl: './chat-page.component.html',
   styleUrl: './chat-page.component.scss',
 })
-export class ChatPageComponent {
+export class ChatPageComponent implements OnInit {
   readonly messages = signal<ChatMessage[]>([]);
   readonly isLoading = signal(false);
   readonly loadingText = signal('Thinking...');
+  readonly isRestoring = signal(false);
 
   @ViewChild('scrollAnchor') private scrollAnchor?: ElementRef<HTMLDivElement>;
 
-  /** Groups this conversation's turns for the mock backend — mirrors what a real
-   * session id would do once wired to /api/chat. Not persisted (see P1.7). */
-  private readonly sessionId = crypto.randomUUID();
+  /** Groups this conversation's turns for the backend. Starts as a fresh id; ngOnInit
+   * overwrites it with the restored conversation's id when reopened from History
+   * (P1.7), so new messages continue that session instead of starting a new one. */
+  private sessionId: string = crypto.randomUUID();
 
-  constructor(private readonly chatApi: ChatApiService) {}
+  constructor(
+    private readonly chatApi: ChatApiService,
+    private readonly historyApi: HistoryApiService,
+    private readonly route: ActivatedRoute,
+  ) {}
+
+  ngOnInit(): void {
+    const restoreId = this.route.snapshot.queryParamMap.get('sessionId');
+    if (!restoreId) {
+      return;
+    }
+    this.isRestoring.set(true);
+    this.historyApi.getHistoryDetail(restoreId).subscribe({
+      next: (detail) => {
+        this.sessionId = detail.sessionId;
+        this.messages.set(
+          detail.turns.flatMap((turn) => {
+            const timestamp = new Date(turn.timestamp);
+            return [
+              { kind: 'user' as const, id: crypto.randomUUID(), text: turn.question, timestamp },
+              { kind: 'assistant' as const, id: crypto.randomUUID(), response: turn.response, timestamp },
+            ];
+          }),
+        );
+        this.isRestoring.set(false);
+        this.scrollToBottom();
+      },
+      error: (err: unknown) => {
+        this.isRestoring.set(false);
+        const message = err instanceof Error ? err.message : 'That conversation could not be restored.';
+        this.messages.set([
+          { kind: 'error', id: crypto.randomUUID(), message, retryText: '', timestamp: new Date() },
+        ]);
+      },
+    });
+  }
 
   onSend(text: string): void {
     if (this.isLoading()) {

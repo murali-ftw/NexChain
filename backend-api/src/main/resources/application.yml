@@ -6,6 +6,16 @@ spring:
   web:
     resources:
       add-mappings: false
+  # P1.7 rectification: conversation history now survives a restart. This is a file
+  # local to backend-api's own process — not Person 2's shared `nexchain` Postgres
+  # database, and not something docker-compose or db/migrations needs to know about.
+  datasource:
+    url: jdbc:h2:file:./data/nexchain-history;AUTO_SERVER=TRUE
+    driver-class-name: org.h2.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
 
 server:
   port: 8080

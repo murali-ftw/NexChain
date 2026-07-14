@@ -23,6 +23,13 @@ public class InMemoryUserStore implements UserStore {
         UserAccount demoUser =
                 new UserAccount(1L, "demo-user", "user@example.com", passwordEncoder.encode("password"), "USER");
         byEmail.put(demoUser.email(), demoUser);
+
+        // P1.7: a second account so history isolation ("users must only access their own
+        // conversations") is actually exercisable, not just asserted against a single user.
+        UserAccount secondUser =
+                new UserAccount(
+                        2L, "second-user", "second-user@example.com", passwordEncoder.encode("password"), "USER");
+        byEmail.put(secondUser.email(), secondUser);
     }
 
     @Override
