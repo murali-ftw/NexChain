@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nexchain.backend.audit.store.AuditRepository;
 import com.nexchain.backend.history.store.ConversationHistoryStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,15 +42,17 @@ class ApplicationSmokeTests {
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private ConversationHistoryStore conversationHistoryStore;
+    @Autowired private AuditRepository auditRepository;
 
     private String token;
 
     @BeforeEach
     void obtainToken() throws Exception {
-        // The store is a singleton shared across every test method in this class (Spring
-        // caches the context) — clear it so one test's chat calls don't leak into another's
-        // history assertions.
+        // Both stores are singletons shared across every test method in this class (Spring
+        // caches the context) — clear them so one test's chat calls don't leak into
+        // another's history/audit assertions.
         conversationHistoryStore.clear();
+        auditRepository.deleteAll();
         token = login(DEMO_EMAIL, DEMO_PASSWORD);
     }
 
@@ -269,11 +272,6 @@ class ApplicationSmokeTests {
                                         {"query": "Where is order SO-45892?"}
                                         """))
                 .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    void auditRejectsAnonymousRequest() throws Exception {
-        mockMvc.perform(get("/api/audit")).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -565,13 +563,212 @@ class ApplicationSmokeTests {
     }
 
     @Test
-    void auditReturnsMockRecords() throws Exception {
+    void auditIsEmptyWhenNoOneHasChattedYet() throws Exception {
         mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)))
-                .andExpect(jsonPath("$[0].traceId").exists())
-                .andExpect(jsonPath("$[0].detectedIntent", hasSize(2)))
+                .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    void chatAutomaticallyCreatesAnAuditEntry() throws Exception {
+        mockMvc.perform(
+                        post("/api/chat")
+                                .header("Authorization", "Bearer " + token)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {"query": "Where is order SO-45892? Why is it delayed?", "sessionId": "sess-1"}
+                                        """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].user").value("demo-user"))
+                .andExpect(jsonPath("$[0].sessionId").value("sess-1"))
+                .andExpect(jsonPath("$[0].rawQuestion").value("Where is order SO-45892? Why is it delayed?"))
+                .andExpect(jsonPath("$[0].detectedIntent[0]").value("MULTI_TOOL_QUERY"))
                 .andExpect(jsonPath("$[0].slaResult").value("Breached"))
-                .andExpect(jsonPath("$[1].generatedSql").exists());
+                .andExpect(jsonPath("$[0].status").value("SUCCESS"))
+                .andExpect(jsonPath("$[0].kbSources", hasSize(1)))
+                .andExpect(jsonPath("$[0].traceId").exists())
+                .andExpect(jsonPath("$[0].warnings", hasSize(1)))
+                // Nothing real generates these yet (Day 4 mock chat pipeline, P2.10/P3 not wired) —
+                // reported as empty/null rather than fabricated.
+                .andExpect(jsonPath("$[0].agentsInvoked", hasSize(0)))
+                .andExpect(jsonPath("$[0].generatedSql").doesNotExist());
+    }
+
+    @Test
+    void everyChatMessageCreatesItsOwnAuditEntryUnlikeHistoryWhichUpdatesInPlace() throws Exception {
+        for (int i = 0; i < 2; i++) {
+            mockMvc.perform(
+                            post("/api/chat")
+                                    .header("Authorization", "Bearer " + token)
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content("""
+                                            {"query": "Is SKU-1001 in stock?", "sessionId": "sess-1"}
+                                            """))
+                    .andExpect(status().isOk());
+        }
+
+        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)));
+    }
+
+    @Test
+    void auditDetailReturnsTheFullEntryById() throws Exception {
+        mockMvc.perform(
+                        post("/api/chat")
+                                .header("Authorization", "Bearer " + token)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {"query": "Is SKU-1001 in stock?", "sessionId": "sess-1"}
+                                        """))
+                .andExpect(status().isOk());
+
+        long auditId =
+                objectMapper
+                        .readTree(
+                                mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + token))
+                                        .andReturn()
+                                        .getResponse()
+                                        .getContentAsString())
+                        .get(0)
+                        .get("auditId")
+                        .asLong();
+
+        mockMvc.perform(get("/api/audit/" + auditId).header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.auditId").value(auditId))
+                .andExpect(jsonPath("$.rawQuestion").value("Is SKU-1001 in stock?"));
+    }
+
+    @Test
+    void auditDetailRejectsUnknownId() throws Exception {
+        mockMvc.perform(get("/api/audit/999999").header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
+    }
+
+    @Test
+    void auditIsVisibleAcrossUsersUnlikeHistory() throws Exception {
+        // Audit is a global admin-facing log (RBAC deferred, Day 8 "Do NOT"), unlike
+        // per-user-isolated Query History.
+        mockMvc.perform(
+                        post("/api/chat")
+                                .header("Authorization", "Bearer " + token)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {"query": "Is SKU-1001 in stock?", "sessionId": "sess-1"}
+                                        """))
+                .andExpect(status().isOk());
+
+        String otherToken = login(SECOND_EMAIL, SECOND_PASSWORD);
+        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)));
+    }
+
+    @Test
+    void auditRejectsAnonymousRequest() throws Exception {
+        mockMvc.perform(get("/api/audit")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/audit/1")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void auditDetailRejectsNonNumericId() throws Exception {
+        mockMvc.perform(get("/api/audit/abc").header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void auditSupportsPaginationWithoutChangingTheUnpaginatedResponseShape() throws Exception {
+        for (int i = 1; i <= 3; i++) {
+            mockMvc.perform(
+                            post("/api/chat")
+                                    .header("Authorization", "Bearer " + token)
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(
+                                            """
+                                            {"query": "Is SKU-1001 in stock?", "sessionId": "sess-%d"}
+                                            """
+                                                    .formatted(i)))
+                    .andExpect(status().isOk());
+        }
+
+        // No page/size: unbounded, exactly like before pagination existed.
+        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(3)))
+                .andExpect(header().string("X-Total-Count", "3"));
+
+        // page/size supplied: only that page comes back, but X-Total-Count still reports all 3.
+        mockMvc.perform(
+                        get("/api/audit").param("page", "0").param("size", "2").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(header().string("X-Total-Count", "3"));
+
+        mockMvc.perform(
+                        get("/api/audit").param("page", "1").param("size", "2").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)));
+    }
+
+    @Test
+    void auditRejectsInvalidPaginationParamsAsBadRequestNotServerError() throws Exception {
+        mockMvc.perform(
+                        get("/api/audit").param("page", "-1").param("size", "10").header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+
+        mockMvc.perform(
+                        get("/api/audit").param("page", "0").param("size", "0").header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+
+        mockMvc.perform(
+                        get("/api/audit").param("page", "abc").param("size", "10").header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    /** Unlike ConversationHistoryStore's append-to-a-shared-row pattern, every chat call
+     * inserts an independent new audit row, so there is no read-modify-write race to lose
+     * — verifying that empirically rather than just by reasoning about it, the same way
+     * the history race was actually caught (by testing, not by inspection). */
+    @Test
+    void concurrentChatCallsEachCreateTheirOwnAuditEntry() throws Exception {
+        int callCount = 10;
+        var executor = java.util.concurrent.Executors.newFixedThreadPool(callCount);
+        var latch = new java.util.concurrent.CountDownLatch(callCount);
+        for (int i = 0; i < callCount; i++) {
+            int n = i;
+            executor.submit(() -> {
+                try {
+                    mockMvc.perform(
+                            post("/api/chat")
+                                    .header("Authorization", "Bearer " + token)
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(
+                                            """
+                                            {"query": "Is SKU-1001 in stock? call-%d", "sessionId": "concurrent-sess-%d"}
+                                            """
+                                                    .formatted(n, n)));
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+        latch.await();
+        executor.shutdown();
+
+        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(callCount)));
     }
 }

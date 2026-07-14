@@ -1,8 +1,8 @@
 package com.nexchain.backend.history.controller;
 
+import com.nexchain.backend.common.validation.PaginationValidator;
 import com.nexchain.backend.history.dto.HistoryDetailDto;
 import com.nexchain.backend.history.dto.HistoryItemDto;
-import com.nexchain.backend.history.exception.InvalidPaginationException;
 import com.nexchain.backend.history.service.HistoryService;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
@@ -37,24 +37,13 @@ public class HistoryController {
     /** Omitting both `page` and `size` returns every conversation, exactly as before —
      * existing callers (Angular's client-side search needs the full set) are unaffected.
      * Supplying either one opts into paging; `X-Total-Count` always reports the total so a
-     * caller can tell how many pages exist.
-     *
-     * Validated explicitly here rather than via {@code @Min}/{@code @Validated} — found
-     * during audit that annotation-driven method validation on {@code @RequestParam} did
-     * not reliably route through the expected exception type in this Spring Boot version,
-     * so a negative page/zero size fell all the way to the generic 500 handler instead of
-     * a 400. Explicit checks are simple enough here that there's no ambiguity to debug. */
+     * caller can tell how many pages exist. */
     @GetMapping("/history")
     public ResponseEntity<List<HistoryItemDto>> getHistory(
             Authentication authentication,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
-        if (page != null && page < 0) {
-            throw new InvalidPaginationException("page must be >= 0");
-        }
-        if (size != null && size < 1) {
-            throw new InvalidPaginationException("size must be >= 1");
-        }
+        PaginationValidator.validate(page, size);
 
         String userEmail = authentication.getName();
         List<HistoryItemDto> items =

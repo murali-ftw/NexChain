@@ -1,8 +1,8 @@
 package com.nexchain.backend.common.exception;
 
+import com.nexchain.backend.audit.exception.AuditEntryNotFoundException;
 import com.nexchain.backend.common.response.ErrorResponse;
 import com.nexchain.backend.history.exception.HistoryNotFoundException;
-import com.nexchain.backend.history.exception.InvalidPaginationException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.stream.Collectors;
@@ -69,7 +69,14 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
-    /** Out-of-range `page`/`size` on GET /api/chat/history (P1.7 rectification) — found
+    /** An audit id that doesn't exist (P1.8). */
+    @ExceptionHandler(AuditEntryNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleAuditEntryNotFound(
+            AuditEntryNotFoundException ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    /** Out-of-range `page`/`size` on GET /api/chat/history or GET /api/audit — found
      * during audit: this used to fall all the way to the generic 500 handler below. */
     @ExceptionHandler(InvalidPaginationException.class)
     public ResponseEntity<ErrorResponse> handleInvalidPagination(
