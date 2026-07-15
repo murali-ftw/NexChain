@@ -52,20 +52,26 @@ retryable failure (`ToolError.retryable`, or any LLM call failure), then
 the node degrades gracefully — its result field carries `{"error": ...}`
 instead of the graph crashing.
 
-## STATUS (Day 8)
+## STATUS
 
-- **Routing gate MET** — all 4 required paths (`KNOWLEDGE_QUERY`,
-  `DATABASE_QUERY`, `API_QUERY`, `MULTI_TOOL_QUERY`) verified via
-  `python -m ai.graph.eval`, including the flagship SO-45892 case.
-  `error_handler` and `retry_count`/`MAX_RETRIES_PER_NODE` verified too.
-- **Live-data correctness is Day 9** (P3.9) — the DB and mock APIs are
-  offline in dev right now, so today's run proved graceful degradation
-  under real tool failures, not correctness against real rows/responses.
-- **`business_rule_agent` and `final_response_agent` are stubs** — Day 10
-  (P3.10) and Day 11 (P3.11) own their real logic.
-- **Order → tracking-number resolution is an unowned gap.** The flagship
-  question gives an order number, not a tracking number; `api_status_agent`
-  currently reports "no tracking number found in query" for it, since
-  cross-referencing one to the other is multi-agent integration work
-  (P3.9), not something any P3.x day explicitly owns yet. Needs a decision
-  at standup.
+**Day 8 (P3.8):** LangGraph supervisor — all 4 paths route to correct
+nodes; retry + error_handler proven.
+
+**Day 9 (P3.9): MET (live)** — the flagship (SO-45892) gathers real data
+from DB + API + KB into graph state. Order → tracking-number resolution,
+the gap Day 8 flagged as unowned, is now resolved live: `api_status_agent`
+falls back from `extract_tracking_no` to `db_boundary.resolve_tracking_no`
+when the query gives an order number but no tracking number, cross-
+referencing `sales_orders` → `shipment` (SO-45892 → TRK-45892-1) against
+the live DB.
+
+**DAY-10 FOLLOW-UPS (not gaps in D8/D9):**
+- KB retrieval doesn't surface the Customs Hold SOP for the flagship
+  phrasing — `business_rule_agent` should re-query/re-rank KB using the
+  delay cause the API branch discovers, rather than the bare raw query.
+- SLA-breach math must query `promised_delivery_date`/`revised_delivery_date`
+  explicitly, not rely on whatever columns `text_to_sql_agent` happened to
+  select for a given phrasing.
+
+**Still stubbed:** `business_rule_agent` (Day 10), `final_response_agent`
+(Day 11).

@@ -10,10 +10,10 @@ from __future__ import annotations
 
 from ai.agents.knowledge_base_agent.agent import answer_policy_question
 from ai.agents.text_to_sql_agent.agent import generate_sql
-from ai.agents.text_to_sql_agent.db_boundary import db_query
+from ai.agents.text_to_sql_agent.db_boundary import db_query, resolve_tracking_no
 from ai.contracts import AgentNode
 from ai.graph.api_boundary import get_shipment_status
-from ai.graph.entities import extract_tracking_no
+from ai.graph.entities import extract_order_no, extract_tracking_no
 from ai.graph.retry import call_with_retry
 from ai.graph.state import CoPilotState
 
@@ -71,21 +71,33 @@ def text_to_sql_agent_node(state: CoPilotState) -> CoPilotState:
 
 
 def api_status_agent_node(state: CoPilotState) -> CoPilotState:
+    """Resolves a tracking number two ways: directly from the query text
+    (TRK-...), or — when the query only gives an order number, as the
+    flagship phrasing does — via a live DB lookup (db_boundary.
+    resolve_tracking_no) from sales_orders to the order's shipment."""
     node = AgentNode.API_STATUS_AGENT.value
     retry_count = dict(state.get("retry_count") or {})
-    attempts_before = retry_count.get(node, 0)
+    attempts = retry_count.get(node, 0)
 
     tracking_no = extract_tracking_no(state["raw_query"])
     if not tracking_no:
-        retry_count[node] = attempts_before
+        order_no = extract_order_no(state["raw_query"])
+        if order_no:
+            tracking_no, error, attempts = call_with_retry(
+                attempts, lambda: resolve_tracking_no(order_no)
+            )
+            if error:
+                retry_count[node] = attempts
+                return {"api_result": {"error": error}, "retry_count": retry_count}
+
+    if not tracking_no:
+        retry_count[node] = attempts
         return {
             "api_result": {"error": "no tracking number found in query"},
             "retry_count": retry_count,
         }
 
-    result, error, attempts = call_with_retry(
-        attempts_before, lambda: get_shipment_status(tracking_no)
-    )
+    result, error, attempts = call_with_retry(attempts, lambda: get_shipment_status(tracking_no))
     retry_count[node] = attempts
     if error:
         return {"api_result": {"error": error}, "retry_count": retry_count}
