@@ -1,0 +1,15 @@
+@if (warnings.length > 0) {
+  <div class="warnings" role="status">
+    @for (warning of warnings; track warning) {
+      <p class="warnings__item">⚠ {{ warning }}</p>
+    }
+  </div>
+}
+
+<div class="metadata" title="Trace ID: {{ traceId }}">
+  @if (partial) {
+    <span class="metadata__partial">Partial response</span>
+  }
+  <span class="metadata__timestamp">{{ timestamp | date: 'medium' }}</span>
+  <span class="metadata__trace">Trace: {{ traceId }}</span>
+</div>

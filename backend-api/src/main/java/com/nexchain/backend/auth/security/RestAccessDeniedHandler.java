@@ -13,9 +13,9 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
 
 /**
- * Authenticated-but-not-permitted requests (no roles are enforced yet — P1.6
- * has no RBAC per docs/team_plan.md — but this is wired up now so a future
- * role check has a clean 403 shape instead of Spring Security's default).
+ * Authenticated-but-not-permitted requests — e.g. a non-ADMIN caller hitting
+ * {@code /api/audit/**} (SecurityConfig) — get this clean 403 shape instead of
+ * Spring Security's default.
  */
 @Component
 public class RestAccessDeniedHandler implements AccessDeniedHandler {

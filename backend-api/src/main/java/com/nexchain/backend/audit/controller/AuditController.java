@@ -11,9 +11,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Global, admin-facing audit log (docs/api_contracts.md). Both endpoints already require
- * JWT authentication (SecurityConfig's default {@code anyRequest().authenticated()}); a
- * role check restricting this to admins is explicitly deferred (Day 8 "Do NOT add RBAC"). */
+/** Global, admin-facing audit log (docs/api_contracts.md). Both endpoints require the
+ * {@code ADMIN} role (SecurityConfig: {@code "/api/audit/**"} + {@code hasRole("ADMIN")}) —
+ * this is a global cross-user log, not scoped by identity like Query History, so only
+ * admins may read it (RC stabilization; previously deferred per Day 8 "Do NOT add RBAC"). */
 @RestController
 @RequestMapping("/api/audit")
 public class AuditController {

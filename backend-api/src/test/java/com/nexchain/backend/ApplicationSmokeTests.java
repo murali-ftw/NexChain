@@ -27,7 +27,8 @@ import org.springframework.test.web.servlet.MvcResult;
  * errors) plus Day 6 (P1.6) authentication coverage: login issues a real JWT, protected
  * endpoints (/api/chat/**, /api/audit/**) reject anonymous/invalid callers and accept
  * valid ones, and public endpoints (/api/health, /api/auth/login) stay open. Plus Day 7
- * (P1.7) coverage: automatic per-user conversation history.
+ * (P1.7) coverage: automatic per-user conversation history. Plus RC-stabilization
+ * coverage: /api/audit/** requires the ADMIN role, not just any authenticated user.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -38,6 +39,8 @@ class ApplicationSmokeTests {
     private static final String DEMO_PASSWORD = "password";
     private static final String SECOND_EMAIL = "second-user@example.com";
     private static final String SECOND_PASSWORD = "password";
+    private static final String ADMIN_EMAIL = "admin@example.com";
+    private static final String ADMIN_PASSWORD = "password";
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
@@ -45,6 +48,7 @@ class ApplicationSmokeTests {
     @Autowired private AuditRepository auditRepository;
 
     private String token;
+    private String adminToken;
 
     @BeforeEach
     void obtainToken() throws Exception {
@@ -54,6 +58,7 @@ class ApplicationSmokeTests {
         conversationHistoryStore.clear();
         auditRepository.deleteAll();
         token = login(DEMO_EMAIL, DEMO_PASSWORD);
+        adminToken = login(ADMIN_EMAIL, ADMIN_PASSWORD);
     }
 
     private String login(String email, String password) throws Exception {
@@ -564,7 +569,7 @@ class ApplicationSmokeTests {
 
     @Test
     void auditIsEmptyWhenNoOneHasChattedYet() throws Exception {
-        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + token))
+        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
     }
@@ -581,7 +586,7 @@ class ApplicationSmokeTests {
                                         """))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + token))
+        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].user").value("demo-user"))
@@ -612,7 +617,7 @@ class ApplicationSmokeTests {
                     .andExpect(status().isOk());
         }
 
-        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + token))
+        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)));
     }
@@ -631,7 +636,7 @@ class ApplicationSmokeTests {
         long auditId =
                 objectMapper
                         .readTree(
-                                mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + token))
+                                mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + adminToken))
                                         .andReturn()
                                         .getResponse()
                                         .getContentAsString())
@@ -639,7 +644,7 @@ class ApplicationSmokeTests {
                         .get("auditId")
                         .asLong();
 
-        mockMvc.perform(get("/api/audit/" + auditId).header("Authorization", "Bearer " + token))
+        mockMvc.perform(get("/api/audit/" + auditId).header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.auditId").value(auditId))
                 .andExpect(jsonPath("$.rawQuestion").value("Is SKU-1001 in stock?"));
@@ -647,15 +652,16 @@ class ApplicationSmokeTests {
 
     @Test
     void auditDetailRejectsUnknownId() throws Exception {
-        mockMvc.perform(get("/api/audit/999999").header("Authorization", "Bearer " + token))
+        mockMvc.perform(get("/api/audit/999999").header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404));
     }
 
     @Test
     void auditIsVisibleAcrossUsersUnlikeHistory() throws Exception {
-        // Audit is a global admin-facing log (RBAC deferred, Day 8 "Do NOT"), unlike
-        // per-user-isolated Query History.
+        // Audit is a global admin-facing log, unlike per-user-isolated Query History: an
+        // admin sees every user's entries, not just their own — proven here by having
+        // demo-user create the entry and admin-user (a third, uninvolved account) read it.
         mockMvc.perform(
                         post("/api/chat")
                                 .header("Authorization", "Bearer " + token)
@@ -665,10 +671,26 @@ class ApplicationSmokeTests {
                                         """))
                 .andExpect(status().isOk());
 
-        String otherToken = login(SECOND_EMAIL, SECOND_PASSWORD);
-        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + otherToken))
+        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)));
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].user").value("demo-user"));
+    }
+
+    @Test
+    void auditRejectsNonAdminUser() throws Exception {
+        // RBAC (RC stabilization): the audit log is admin-only. A regular authenticated
+        // user — even one who generated the very entry being requested — gets 403, not the
+        // data. SecurityConfig's hasRole("ADMIN") check runs before the controller, so this
+        // also covers /api/audit/{id}.
+        String otherToken = login(SECOND_EMAIL, SECOND_PASSWORD);
+        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403));
+        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/audit/1").header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -679,7 +701,7 @@ class ApplicationSmokeTests {
 
     @Test
     void auditDetailRejectsNonNumericId() throws Exception {
-        mockMvc.perform(get("/api/audit/abc").header("Authorization", "Bearer " + token))
+        mockMvc.perform(get("/api/audit/abc").header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isBadRequest());
     }
 
@@ -699,20 +721,20 @@ class ApplicationSmokeTests {
         }
 
         // No page/size: unbounded, exactly like before pagination existed.
-        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + token))
+        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(3)))
                 .andExpect(header().string("X-Total-Count", "3"));
 
         // page/size supplied: only that page comes back, but X-Total-Count still reports all 3.
         mockMvc.perform(
-                        get("/api/audit").param("page", "0").param("size", "2").header("Authorization", "Bearer " + token))
+                        get("/api/audit").param("page", "0").param("size", "2").header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(header().string("X-Total-Count", "3"));
 
         mockMvc.perform(
-                        get("/api/audit").param("page", "1").param("size", "2").header("Authorization", "Bearer " + token))
+                        get("/api/audit").param("page", "1").param("size", "2").header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)));
     }
@@ -720,17 +742,17 @@ class ApplicationSmokeTests {
     @Test
     void auditRejectsInvalidPaginationParamsAsBadRequestNotServerError() throws Exception {
         mockMvc.perform(
-                        get("/api/audit").param("page", "-1").param("size", "10").header("Authorization", "Bearer " + token))
+                        get("/api/audit").param("page", "-1").param("size", "10").header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400));
 
         mockMvc.perform(
-                        get("/api/audit").param("page", "0").param("size", "0").header("Authorization", "Bearer " + token))
+                        get("/api/audit").param("page", "0").param("size", "0").header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400));
 
         mockMvc.perform(
-                        get("/api/audit").param("page", "abc").param("size", "10").header("Authorization", "Bearer " + token))
+                        get("/api/audit").param("page", "abc").param("size", "10").header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400));
     }
@@ -767,7 +789,7 @@ class ApplicationSmokeTests {
         latch.await();
         executor.shutdown();
 
-        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + token))
+        mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(callCount)));
     }

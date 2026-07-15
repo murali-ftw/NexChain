@@ -1,0 +1,20 @@
+@if (hasContent()) {
+  @if (promisedDeliveryDate) {
+    <div class="card-row">
+      <dt>Promised delivery date</dt>
+      <dd>{{ promisedDeliveryDate }}</dd>
+    </div>
+  }
+  @if (revisedDeliveryDate) {
+    <div class="card-row">
+      <dt>Revised ETA</dt>
+      <dd>{{ revisedDeliveryDate }}</dd>
+    </div>
+  }
+  <div class="card-row">
+    <dt>SLA result</dt>
+    <dd>
+      <span class="sla-badge" [class]="badgeClass()">{{ slaStatus }}</span>
+    </dd>
+  </div>
+}

@@ -41,6 +41,7 @@ from typing import TypeVar
 from mcp.server.fastmcp import FastMCP
 from pydantic_core import to_jsonable_python
 
+from ai.agents.text_to_sql_agent.validator import validate_sql
 from ai.contracts import DBResult, InventoryRecord, OrderStatus, ShipmentStatus
 from ai_service.tools import api_client, db
 from ai_service.tools.errors import ToolError, ToolNotFound
@@ -90,14 +91,22 @@ def _call(tool: str, inputs: str, fn: Callable[..., T], *args: object) -> T:
 
 @mcp.tool()
 def db_query(sql: str) -> DBResult:
-    """Execute a pre-validated read-only SQL SELECT against the supply-chain
-    database and return the matching rows.
+    """Execute a read-only SQL SELECT against the supply-chain database and
+    return the matching rows.
 
-    `sql` must already have been validated by the Text-to-SQL agent (tech-req
-    §5). Use for questions that need aggregation, filtering or joins across
-    orders, customers, inventory, shipments, invoices and payments.
+    Validated here (P2.9) against the same allowlist/denylist/row-limit the
+    Text-to-SQL agent (tech-req §5) already enforces before generating this
+    tool's input — this is defense in depth at the tool boundary itself, not
+    reliance on the caller alone. Use for questions that need aggregation,
+    filtering or joins across orders, customers, inventory, shipments,
+    invoices and payments.
     """
-    return DBResult(rows=to_jsonable_python(_call("db_query", sql, db.run_select, sql)))
+    validation = validate_sql(sql)
+    if not validation.valid or not validation.safe_sql:
+        raise ToolError("db_query", f"rejected: {validation.reason}", retryable=False, status_code=400)
+    return DBResult(
+        rows=to_jsonable_python(_call("db_query", sql, db.run_select, validation.safe_sql))
+    )
 
 
 @mcp.tool()

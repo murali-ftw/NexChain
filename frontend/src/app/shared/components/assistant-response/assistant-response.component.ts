@@ -1,12 +1,28 @@
 import { Component, Input, computed, signal } from '@angular/core';
 import { ChatResponse } from '../../../features/chat/models/chat.model';
+import { StatusCardComponent } from '../response-cards/status-card/status-card.component';
+import { ShipmentCardComponent } from '../response-cards/shipment-card/shipment-card.component';
+import { DelayCardComponent } from '../response-cards/delay-card/delay-card.component';
+import { SlaCardComponent } from '../response-cards/sla-card/sla-card.component';
+import { RecommendationsCardComponent } from '../response-cards/recommendations-card/recommendations-card.component';
+import { SourcesCardComponent } from '../response-cards/sources-card/sources-card.component';
+import { MetadataFooterComponent } from '../response-cards/metadata-footer/metadata-footer.component';
 
-type SourceBadge = 'DB' | 'API' | 'KB';
-
+/** Container for the P1.9 structured response. Composes the reusable card
+ * components below; each card self-hides when its own fields are absent, so
+ * this component never needs to know which fields a given intent populates. */
 @Component({
   selector: 'app-assistant-response',
   standalone: true,
-  imports: [],
+  imports: [
+    StatusCardComponent,
+    ShipmentCardComponent,
+    DelayCardComponent,
+    SlaCardComponent,
+    RecommendationsCardComponent,
+    SourcesCardComponent,
+    MetadataFooterComponent,
+  ],
   templateUrl: './assistant-response.component.html',
   styleUrl: './assistant-response.component.scss',
 })
@@ -21,58 +37,21 @@ export class AssistantResponseComponent {
     return this._response()!;
   }
 
-  /** Current-status line composed from structured fields — there is no separate
-   * "current status" string in the agreed schema (see docs/api_contracts.md), so this
-   * is assembled from whichever of orderStatus/shipmentStatus/currentLocation are present. */
-  readonly currentStatusLine = computed(() => {
-    const r = this._response();
-    if (!r) return null;
-    const parts = [r.orderStatus, r.shipmentStatus, r.currentLocation].filter(
-      (part): part is string => !!part,
-    );
-    return parts.length > 0 ? parts.join(' · ') : null;
-  });
-
-  readonly hasImpact = computed(() => {
+  /** Whether the status/shipment/delay/SLA card grid has anything to show at all —
+   * governs whether the grid wrapper renders, since every card inside self-hides
+   * individually but an all-hidden grid would still show empty padding. */
+  readonly hasCardContent = computed(() => {
     const r = this._response();
     if (!r) return false;
     return (
+      r.orderStatus != null ||
+      r.shipmentStatus != null ||
+      r.currentLocation != null ||
+      r.delayReason != null ||
+      r.delayDays != null ||
       r.promisedDeliveryDate != null ||
       r.revisedDeliveryDate != null ||
-      r.delayDays != null ||
       r.slaStatus !== 'N/A'
     );
-  });
-
-  /** Source badges are derived from `intent` (RoutingCategory) — the schema has no
-   * separate DB/API/KB tag on individual sources, see docs/api_contracts.md. */
-  readonly sourceBadges = computed<SourceBadge[]>(() => {
-    const r = this._response();
-    if (!r) return [];
-    switch (r.intent) {
-      case 'KNOWLEDGE_QUERY':
-        return ['KB'];
-      case 'DATABASE_QUERY':
-        return ['DB'];
-      case 'API_QUERY':
-        return ['API'];
-      case 'MULTI_TOOL_QUERY':
-        return r.sources.length > 0 ? ['DB', 'API', 'KB'] : ['DB', 'API'];
-    }
-  });
-
-  readonly slaBadgeClass = computed(() => {
-    const r = this._response();
-    if (!r) return '';
-    switch (r.slaStatus) {
-      case 'Breached':
-        return 'impact__sla-badge--breached';
-      case 'At Risk':
-        return 'impact__sla-badge--at-risk';
-      case 'On Time':
-        return 'impact__sla-badge--on-time';
-      default:
-        return 'impact__sla-badge--na';
-    }
   });
 }

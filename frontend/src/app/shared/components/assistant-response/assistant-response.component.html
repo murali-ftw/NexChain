@@ -4,74 +4,28 @@
     <h3 class="response__headline">{{ response.answerText }}</h3>
   </header>
 
-  @if (currentStatusLine(); as statusLine) {
-    <p class="response__status">{{ statusLine }}</p>
-  }
-
-  @if (response.delayReason) {
-    <p class="response__delay-reason">
-      <strong>Reason for delay:</strong> {{ response.delayReason }}
-    </p>
-  }
-
-  @if (hasImpact()) {
-    <dl class="impact">
-      @if (response.promisedDeliveryDate) {
-        <div class="impact__row">
-          <dt>Promised delivery date</dt>
-          <dd>{{ response.promisedDeliveryDate }}</dd>
-        </div>
-      }
-      @if (response.revisedDeliveryDate) {
-        <div class="impact__row">
-          <dt>Revised ETA</dt>
-          <dd>{{ response.revisedDeliveryDate }}</dd>
-        </div>
-      }
-      @if (response.delayDays != null) {
-        <div class="impact__row">
-          <dt>Delay</dt>
-          <dd>{{ response.delayDays }} day{{ response.delayDays === 1 ? '' : 's' }}</dd>
-        </div>
-      }
-      <div class="impact__row">
-        <dt>SLA result</dt>
-        <dd>
-          <span class="impact__sla-badge" [class]="slaBadgeClass()">{{ response.slaStatus }}</span>
-        </dd>
-      </div>
+  @if (hasCardContent()) {
+    <dl class="response__cards">
+      <app-status-card [orderStatus]="response.orderStatus" />
+      <app-shipment-card [shipmentStatus]="response.shipmentStatus" [currentLocation]="response.currentLocation" />
+      <app-delay-card [delayReason]="response.delayReason" [delayDays]="response.delayDays" />
+      <app-sla-card
+        [slaStatus]="response.slaStatus"
+        [promisedDeliveryDate]="response.promisedDeliveryDate"
+        [revisedDeliveryDate]="response.revisedDeliveryDate"
+      />
     </dl>
   }
 
-  @if (response.recommendedActions.length > 0) {
-    <div class="response__actions">
-      <h4>Recommended actions</h4>
-      <ol>
-        @for (action of response.recommendedActions; track action) {
-          <li>{{ action }}</li>
-        }
-      </ol>
-    </div>
-  }
-
-  @if (response.warnings.length > 0) {
-    <div class="response__warnings" role="status">
-      @for (warning of response.warnings; track warning) {
-        <p class="response__warning">⚠ {{ warning }}</p>
-      }
-    </div>
-  }
+  <app-recommendations-card [actions]="response.recommendedActions" />
 
   <footer class="response__footer">
-    <div class="response__sources" aria-label="Sources">
-      @for (badge of sourceBadges(); track badge) {
-        <span class="source-badge" [class]="'source-badge--' + badge.toLowerCase()">{{ badge }}</span>
-      }
-      @for (source of response.sources; track source.documentName) {
-        <span class="source-badge source-badge--doc" [title]="source.snippet ?? ''">
-          {{ source.documentName }}
-        </span>
-      }
-    </div>
+    <app-sources-card [intent]="response.intent" [sources]="response.sources" />
+    <app-metadata-footer
+      [traceId]="response.traceId"
+      [timestamp]="response.timestamp"
+      [warnings]="response.warnings"
+      [partial]="response.partial"
+    />
   </footer>
 </article>

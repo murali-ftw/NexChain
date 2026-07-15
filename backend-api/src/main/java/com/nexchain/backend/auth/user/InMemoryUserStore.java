@@ -30,6 +30,13 @@ public class InMemoryUserStore implements UserStore {
                 new UserAccount(
                         2L, "second-user", "second-user@example.com", passwordEncoder.encode("password"), "USER");
         byEmail.put(secondUser.email(), secondUser);
+
+        // RC stabilization: the audit log is admin-only (SecurityConfig, "/api/audit/**"
+        // hasRole("ADMIN")) — seeded here so that RBAC is actually exercisable end-to-end,
+        // not just enforced against an account nothing can authenticate as.
+        UserAccount adminUser =
+                new UserAccount(3L, "admin-user", "admin@example.com", passwordEncoder.encode("password"), "ADMIN");
+        byEmail.put(adminUser.email(), adminUser);
     }
 
     @Override

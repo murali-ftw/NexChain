@@ -44,9 +44,23 @@ def text_to_sql_agent_node(state: CoPilotState) -> CoPilotState:
     retry_count = dict(state.get("retry_count") or {})
     attempts_before = retry_count.get(node, 0)
 
-    generation = generate_sql(state["raw_query"], intent_hint=state.get("intent"))
-    if generation.abstained or not generation.sql:
-        retry_count[node] = attempts_before
+    # generate_sql() calls the LLM directly (ai/llm_client.generate) — wrapped
+    # here, like the db_query call below and knowledge_base_agent_node's own
+    # LLM call, so an LLM outage/misconfiguration degrades this node's result
+    # (tech-req §7) instead of crashing the whole graph invocation.
+    generation, error, attempts = call_with_retry(
+        attempts_before,
+        lambda: generate_sql(state["raw_query"], intent_hint=state.get("intent")),
+    )
+    retry_count[node] = attempts
+    if error:
+        return {
+            "sql_result": {"sql": None, "error": error},
+            "retry_count": retry_count,
+        }
+    assert generation is not None  # call_with_retry: error is None => result is set
+    sql = generation.sql
+    if generation.abstained or not sql:
         return {
             "sql_result": {
                 "sql": None,
@@ -55,17 +69,15 @@ def text_to_sql_agent_node(state: CoPilotState) -> CoPilotState:
             "retry_count": retry_count,
         }
 
-    db_result, error, attempts = call_with_retry(
-        attempts_before, lambda: db_query(generation.sql)
-    )
+    db_result, error, attempts = call_with_retry(attempts, lambda: db_query(sql))
     retry_count[node] = attempts
     if error:
         return {
-            "sql_result": {"sql": generation.sql, "error": error},
+            "sql_result": {"sql": sql, "error": error},
             "retry_count": retry_count,
         }
     return {
-        "sql_result": {"sql": generation.sql, "rows": db_result.rows},
+        "sql_result": {"sql": sql, "rows": db_result.rows},
         "retry_count": retry_count,
     }
 

@@ -14,17 +14,28 @@ from __future__ import annotations
 
 from pydantic_core import to_jsonable_python
 
+from ai.agents.text_to_sql_agent.validator import validate_sql
 from ai.contracts import DBResult
 from ai_service.tools.db import run_select
+from ai_service.tools.errors import ToolError
 
 
 def db_query(sql: str) -> DBResult:
     """Execute already-validated SELECT SQL against the live database.
 
-    Raises ai_service.tools.errors.ToolError (via run_select) on failure —
-    callers (the text_to_sql_agent graph node) handle retry/error routing.
+    Re-validates (P2.9) as defense in depth even though the only current
+    caller (text_to_sql_agent_node) already passes generate_sql()'s own
+    safe_sql — so a future caller can never reach the database with
+    unvalidated SQL through this boundary either.
+
+    Raises ai_service.tools.errors.ToolError (via run_select, or directly on
+    validation failure) on failure — callers (the text_to_sql_agent graph
+    node) handle retry/error routing.
     """
-    return DBResult(rows=to_jsonable_python(run_select(sql)))
+    validation = validate_sql(sql)
+    if not validation.valid or not validation.safe_sql:
+        raise ToolError("db_query", f"rejected: {validation.reason}", retryable=False, status_code=400)
+    return DBResult(rows=to_jsonable_python(run_select(validation.safe_sql)))
 
 
 def resolve_tracking_no(order_no: str) -> str | None:

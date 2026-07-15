@@ -50,13 +50,23 @@ def timeout_seconds() -> float:
 def run_select(sql: str, params: tuple = ()) -> list[dict]:
     """Execute a read query and return its rows as dicts.
 
+    `connect_timeout` only bounds establishing the connection; `statement_timeout`
+    (P2.9) bounds the query itself, so a pathological SELECT (e.g. an
+    unintentionally expensive join let through by the table allowlist) can't
+    hang this call indefinitely. A cancelled statement surfaces as
+    psycopg.errors.QueryCanceled, a psycopg.OperationalError subclass already
+    handled below as a retryable ToolUnavailable.
+
     # ponytail: a connection per call, same as mock_apis/db.py. A pool is worth
     # it once the graph fans out several tool calls per question; it isn't yet.
     """
     logger.info("tool=%s sql=%s", TOOL, sql)
     try:
         with psycopg.connect(
-            dsn(), row_factory=dict_row, connect_timeout=int(timeout_seconds())
+            dsn(),
+            row_factory=dict_row,
+            connect_timeout=int(timeout_seconds()),
+            options=f"-c statement_timeout={int(timeout_seconds() * 1000)}",
         ) as conn, conn.cursor() as cur:
             cur.execute(sql, params)
             return cur.fetchall()

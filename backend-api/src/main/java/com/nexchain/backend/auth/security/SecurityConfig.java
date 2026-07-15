@@ -59,6 +59,8 @@ public class SecurityConfig {
                         auth ->
                                 auth.requestMatchers("/api/auth/login", "/api/health")
                                         .permitAll()
+                                        .requestMatchers("/api/audit/**")
+                                        .hasRole("ADMIN")
                                         .anyRequest()
                                         .authenticated())
                 .exceptionHandling(
