@@ -166,3 +166,17 @@ def test_database_down_raises_unavailable(monkeypatch: pytest.MonkeyPatch) -> No
     with pytest.raises(ToolUnavailable) as exc_info:
         db.run_select("SELECT 1")
     assert exc_info.value.retryable is True
+
+
+def test_missing_database_url_fails_loud_instead_of_defaulting(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A missing AI_SERVICE_DATABASE_URL must not silently fall back to a
+    passwordless localhost DSN — that made a misconfigured environment
+    indistinguishable from a live one, since every call then failed as a
+    generic ToolUnavailable instead of surfacing the actual config error."""
+    monkeypatch.delenv("AI_SERVICE_DATABASE_URL", raising=False)
+    with pytest.raises(RuntimeError) as exc_info:
+        db.run_select("SELECT 1")
+    assert not isinstance(exc_info.value, ToolError)
+    assert "AI_SERVICE_DATABASE_URL" in str(exc_info.value)

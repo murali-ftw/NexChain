@@ -34,13 +34,27 @@ if _ENV_PATH.exists():
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_DSN = "postgresql://copilot_readonly@localhost:5432/nexchain"
 DEFAULT_TIMEOUT_SECONDS = 5.0
 TOOL = "db_query"
 
 
 def dsn() -> str:
-    return os.environ.get("AI_SERVICE_DATABASE_URL", "").strip() or DEFAULT_DSN
+    """The AI_SERVICE_DATABASE_URL is required, not defaulted.
+
+    # ponytail: no passwordless-localhost fallback — a missing env var used to
+    # silently connect to postgresql://copilot_readonly@localhost:5432/nexchain,
+    # which let a misconfigured environment masquerade as a live one (every
+    # DB-dependent call then failed as a generic ToolUnavailable "db down"
+    # instead of the actual config error). This must raise, not be caught by
+    # run_select()'s except clauses, so it can't be swallowed as a tool failure.
+    """
+    value = os.environ.get("AI_SERVICE_DATABASE_URL", "").strip()
+    if not value:
+        raise RuntimeError(
+            "AI_SERVICE_DATABASE_URL is not set — refusing to fall back to a "
+            "passwordless localhost DSN (see ai_service/.env.example)"
+        )
+    return value
 
 
 def timeout_seconds() -> float:
