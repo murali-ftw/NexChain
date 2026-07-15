@@ -9,11 +9,13 @@ only defense.
 Backs the `db_query` MCP tool (P2.7). Failures are normalized to ToolError like
 every other tool (tech-req §7).
 
-# ponytail: SELECT-only parsing, the table allowlist, row limits, and the
-# statement timeout are P2.9 (Day 9) — SQL_TABLE_ALLOWLIST / SQL_DENIED_KEYWORDS
-# / SQL_ROW_LIMIT already exist in ai/contracts.py, unenforced here on purpose.
-# Until then the read-only role is what stands between a bad query and the data,
-# which is why run_select() is not exposed over HTTP by anything yet.
+P2.9 (Day 9) safety: run_select() bounds every query with a statement_timeout
+(below). SELECT-only parsing, the table allowlist and row limits (against
+SQL_TABLE_ALLOWLIST / SQL_DENIED_KEYWORDS / SQL_ROW_LIMIT in ai/contracts.py) are
+enforced one level up, at the db_query MCP tool boundary via validate_sql — this
+function stays a plain executor so trusted internal callers like get_order() are
+not run through the LLM-output validator. Underneath both, the read-only role is
+the last line between a bad query and the data.
 """
 
 from __future__ import annotations

@@ -21,11 +21,12 @@ Run it:
     .venv/bin/python -m mcp_server.server                      # stdio (default)
     MCP_TRANSPORT=streamable-http .venv/bin/python -m mcp_server.server   # port 8002
 
-# ponytail: SELECT-only parsing, the table allowlist and row limits are P2.9
-# (Day 9) — until then `db_query` executes what it is given and the
-# copilot_readonly grant (db/migrations/002_roles.sh) is the only thing
-# stopping a bad query. It cannot write, and cannot read users or audit_log at
-# all, so the blast radius is "reads a table it didn't need to", not damage.
+P2.9 (Day 9) adds tool safety at the `db_query` boundary: every SQL string is
+validated (SELECT-only, table allowlist, row-limited, denied-keyword-clean) via
+validate_sql before it reaches the database, and db.py bounds the query with a
+statement_timeout. That is defense in depth on top of the copilot_readonly grant
+(db/migrations/002_roles.sh), which can neither write nor read users/audit_log —
+so even a validation bug bottoms out at "reads a table it didn't need to".
 """
 
 from __future__ import annotations

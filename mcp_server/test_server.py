@@ -131,6 +131,60 @@ async def test_a_broken_query_is_a_controlled_error_not_a_crash() -> None:
     assert "db_query" in result.content[0].text
 
 
+# --- P2.9: tool safety at the db_query boundary -----------------------------
+#
+# The completion gate: "Dangerous SQL is rejected and failed tools return
+# controlled errors." Validation runs a second time here at the tool boundary
+# (defense in depth, tech-req §4.2) even though the Text-to-SQL agent validates
+# before emitting SQL — a bug that bypasses the agent must still be stopped here,
+# and underneath both the copilot_readonly role is a third, DB-enforced layer.
+# A rejection must reach Person 3 as a controlled error, never as an execution.
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "DELETE FROM sales_orders WHERE order_no = 'SO-45892'",
+        "UPDATE sales_orders SET current_status = 'Delivered'",
+        "DROP TABLE customers",
+        "TRUNCATE customers",
+        "INSERT INTO customers (customer_code) VALUES ('X')",
+        "SELECT 1; DELETE FROM sales_orders",  # piggy-backed write
+    ],
+)
+async def test_write_and_ddl_sql_is_rejected_before_execution(sql: str) -> None:
+    """tech-req §271 security test: db_query cannot execute write/DDL. The row
+    still exists afterward, proving nothing ran."""
+    async with create_connected_server_and_client_session(mcp._mcp_server) as client:
+        result = await client.call_tool("db_query", {"sql": sql})
+    assert result.isError
+    assert "rejected" in _error_text(result.content)
+
+    survivor = await call("db_query", sql="SELECT order_no FROM sales_orders WHERE order_no = 'SO-45892'")
+    assert survivor["rows"] == [{"order_no": "SO-45892"}]
+
+
+@pytest.mark.asyncio
+async def test_non_allowlisted_table_is_rejected() -> None:
+    """`users` and `audit_log` are outside SQL_TABLE_ALLOWLIST — the tool refuses
+    them even though a SELECT against them is otherwise well-formed. (The
+    copilot_readonly role also can't read them, but the tool must not rely on
+    that alone.)"""
+    async with create_connected_server_and_client_session(mcp._mcp_server) as client:
+        result = await client.call_tool("db_query", {"sql": "SELECT * FROM users"})
+    assert result.isError
+    assert "non-allowlisted" in _error_text(result.content)
+
+
+@pytest.mark.asyncio
+async def test_row_limit_is_capped_at_200() -> None:
+    """An over-large LIMIT is rewritten down to SQL_ROW_LIMIT so a tool call can
+    never dump an unbounded result set at the graph."""
+    result = await call("db_query", sql="SELECT order_no FROM sales_orders LIMIT 100000")
+    assert len(result["rows"]) <= 200
+
+
 # --- P2.8: the three operational API tools ----------------------------------
 
 
