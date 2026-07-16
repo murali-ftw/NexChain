@@ -62,9 +62,25 @@ def validate_sql(sql: str) -> ValidationResult:
 
     cte_aliases = {cte.alias for cte in statement.find_all(exp.CTE)}
     tables = {t.name for t in statement.find_all(exp.Table)} - cte_aliases
+    if not tables:
+        # A table-less SELECT (e.g. `SELECT pg_sleep(20)`) has nothing for the
+        # allowlist below to check against, so it would otherwise pass
+        # unconditionally. No legitimate supply-chain question needs one.
+        return _reject("SELECT does not reference any table")
     disallowed = tables - SQL_TABLE_ALLOWLIST
     if disallowed:
         return _reject(f"references non-allowlisted table(s): {sorted(disallowed)}")
+
+    unrecognized = {fn.name for fn in statement.find_all(exp.Anonymous)}
+    if unrecognized:
+        # sqlglot models every standard SQL function (COUNT, COALESCE,
+        # DATE_TRUNC, NOW, ROUND, CAST, ...) as a typed Func subclass; a
+        # function it falls back to exp.Anonymous for is one it doesn't
+        # recognize as standard SQL — e.g. pg_sleep, set_config,
+        # current_setting, pg_terminate_backend. Denylisting those by name
+        # would mean chasing an ever-growing list of admin/system functions;
+        # rejecting "unrecognized" closes the whole class at once.
+        return _reject(f"uses unrecognized function(s): {sorted(unrecognized)}")
 
     existing_limit = statement.args.get("limit")
     if existing_limit is None:

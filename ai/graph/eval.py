@@ -96,6 +96,12 @@ def _node_succeeded(state: CoPilotState, node: str) -> tuple[bool, str]:
         return False, f"{field} is empty/None"
     if isinstance(result, dict) and result.get("error"):
         return False, f"{field} error: {result['error']}"
+    if isinstance(result, dict) and result.get("abstained"):
+        # The KB agent ran without error but explicitly found no evidence
+        # (ai/agents/knowledge_base_agent/agent.py) — visitation without a
+        # real answer, the same "ran but didn't succeed" case this gate
+        # closes for errors.
+        return False, f"{field} abstained: no evidence found"
     return True, ""
 
 

@@ -89,27 +89,36 @@ def api_status_agent_node(state: CoPilotState) -> CoPilotState:
     resolve_tracking_no) from sales_orders to the order's shipment."""
     node = AgentNode.API_STATUS_AGENT.value
     retry_count = dict(state.get("retry_count") or {})
-    attempts = retry_count.get(node, 0)
+    attempts_before = retry_count.get(node, 0)
 
     tracking_no = extract_tracking_no(state["raw_query"])
+    order_no = None
     if not tracking_no:
         order_no = extract_order_no(state["raw_query"])
         if order_no:
-            tracking_no, error, attempts = call_with_retry(
-                attempts, lambda: resolve_tracking_no(order_no)
+            # Its own fresh MAX_RETRIES_PER_NODE budget, not the leftover
+            # from this lookup threaded into the shipment-status call below
+            # — otherwise a transient failure here silently costs the
+            # shipment-status call its only retry too.
+            tracking_no, error, resolve_attempts = call_with_retry(
+                attempts_before, lambda: resolve_tracking_no(order_no)
             )
             if error:
-                retry_count[node] = attempts
+                retry_count[node] = resolve_attempts
                 return {"api_result": {"error": error}, "retry_count": retry_count}
 
     if not tracking_no:
-        retry_count[node] = attempts
-        return {
-            "api_result": {"error": "no tracking number found in query"},
-            "retry_count": retry_count,
-        }
+        retry_count[node] = attempts_before
+        detail = (
+            f"order {order_no} has no shipment yet"
+            if order_no
+            else "no tracking or order number found in query"
+        )
+        return {"api_result": {"error": detail}, "retry_count": retry_count}
 
-    result, error, attempts = call_with_retry(attempts, lambda: get_shipment_status(tracking_no))
+    result, error, attempts = call_with_retry(
+        attempts_before, lambda: get_shipment_status(tracking_no)
+    )
     retry_count[node] = attempts
     if error:
         return {"api_result": {"error": error}, "retry_count": retry_count}

@@ -104,6 +104,12 @@ def db_query(sql: str) -> DBResult:
     """
     validation = validate_sql(sql)
     if not validation.valid or not validation.safe_sql:
+        logger.warning(
+            "mcp_tool=%s input=%s status=rejected reason=%s",
+            "db_query",
+            sql,
+            validation.reason,
+        )
         raise ToolError("db_query", f"rejected: {validation.reason}", retryable=False, status_code=400)
     return DBResult(
         rows=to_jsonable_python(_call("db_query", sql, db.run_select, validation.safe_sql))

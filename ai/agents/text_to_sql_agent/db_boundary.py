@@ -12,12 +12,16 @@ function — the agent, validator, or the prompt — needs to change.
 
 from __future__ import annotations
 
+import logging
+
 from pydantic_core import to_jsonable_python
 
 from ai.agents.text_to_sql_agent.validator import validate_sql
 from ai.contracts import DBResult
 from ai_service.tools.db import run_select
 from ai_service.tools.errors import ToolError
+
+logger = logging.getLogger(__name__)
 
 
 def db_query(sql: str) -> DBResult:
@@ -34,6 +38,9 @@ def db_query(sql: str) -> DBResult:
     """
     validation = validate_sql(sql)
     if not validation.valid or not validation.safe_sql:
+        logger.warning(
+            "tool=db_query status=rejected sql=%s reason=%s", sql, validation.reason
+        )
         raise ToolError("db_query", f"rejected: {validation.reason}", retryable=False, status_code=400)
     return DBResult(rows=to_jsonable_python(run_select(validation.safe_sql)))
 
@@ -47,10 +54,16 @@ def resolve_tracking_no(order_no: str) -> str | None:
 
     Raises ai_service.tools.errors.ToolError (via run_select) on failure.
     Returns None if the order has no shipment yet.
+
+    order_id has no UNIQUE constraint on shipment (db/06_backend_schema.md),
+    so a re-ship or duplicate row is possible; ORDER BY shipment_id DESC
+    picks the most recent shipment deterministically instead of whatever
+    row the database happens to return first.
     """
     rows = run_select(
         "SELECT tracking_no FROM shipment WHERE order_id = "
-        "(SELECT order_id FROM sales_orders WHERE order_no = %s)",
+        "(SELECT order_id FROM sales_orders WHERE order_no = %s) "
+        "ORDER BY shipment_id DESC",
         (order_no,),
     )
     return rows[0]["tracking_no"] if rows else None
