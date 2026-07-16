@@ -8,23 +8,45 @@ only has to let the graph reach every contract node and close cleanly.
 
 from __future__ import annotations
 
+import datetime
+import json
+
 from ai.agents.knowledge_base_agent.agent import answer_policy_question
 from ai.agents.text_to_sql_agent.agent import generate_sql
 from ai.agents.text_to_sql_agent.db_boundary import db_query, resolve_tracking_no
-from ai.contracts import AgentNode
+from ai.contracts import AgentNode, SLAStatus
 from ai.graph.api_boundary import get_shipment_status
 from ai.graph.entities import extract_order_no, extract_tracking_no
 from ai.graph.retry import call_with_retry
 from ai.graph.state import CoPilotState
+from ai.llm_client import LLMConfigError, LLMProviderError, generate
+from ai_service.tools.db import get_order, run_select
 
 
 def knowledge_base_agent_node(state: CoPilotState) -> CoPilotState:
+    """For a MULTI_TOOL_QUERY, routing.py always sequences this node after
+    text_to_sql_agent/api_status_agent (required_nodes() preserves
+    sub_intents order, and DELAY_ANALYSIS's sub_intents put sop_lookup
+    last) — so by the time this runs, api_result may already carry the
+    shipment's delay_reason (e.g. "HS code mismatch during customs
+    validation."). That's a far better semantic-search query than the raw
+    multi-part question ("Where is order X, why is it delayed, what
+    should we do") — the KB is organized around cause-specific SOPs
+    (Customs Hold, Inventory Shortage, ...) phrased close to the delay
+    reason itself, not around entity references the retriever has no
+    embeddings for. Falls back to the raw query for pure policy
+    questions (no api_result yet) and multi-tool queries where the API
+    branch didn't produce a cause.
+    """
     node = AgentNode.KNOWLEDGE_BASE_AGENT.value
     retry_count = dict(state.get("retry_count") or {})
     attempts_before = retry_count.get(node, 0)
 
+    delay_reason = (state.get("api_result") or {}).get("delay_reason")
+    question = delay_reason or state["raw_query"]
+
     result, error, attempts = call_with_retry(
-        attempts_before, lambda: answer_policy_question(state["raw_query"])
+        attempts_before, lambda: answer_policy_question(question)
     )
     retry_count[node] = attempts
     if error:
@@ -126,27 +148,229 @@ def api_status_agent_node(state: CoPilotState) -> CoPilotState:
 
 
 def business_rule_agent_node(state: CoPilotState) -> CoPilotState:
-    """STUB — P3.10 (Day 10) owns real SLA/delay/escalation logic. This
-    only lets the graph proceed to final_response_agent with whatever
-    kb/sql/api results were gathered."""
-    return {"rule_result": {"stub": True}}
+    """P3.10 — SLA breach / delay-day calculation, per
+    ai/knowledge_base/01_sla_policy.md's Breach Determination Logic
+    (worked example: SO-45892, GOLD, 6-day delay > 5-day threshold =>
+    Breached, Logistics Manager).
+
+    Re-fetches the order via db.get_order() rather than reading
+    sql_result — text_to_sql_agent's SQL is LLM-generated from the raw
+    question and has no guaranteed shape, whereas get_order() is the
+    fixed, authoritative query that already joins customers.sla_tier
+    (db.py's own docstring: "the Business Rule Agent needs the
+    customer's sla_tier ... to decide breach/escalation").
+
+    Every branch of next_pending_node's routing (ai/graph/routing.py)
+    passes through this node, including single-source queries with no
+    order number (inventory, generic SOP lookups) — those correctly
+    produce sla_status N/A rather than an error.
+    """
+    node = AgentNode.BUSINESS_RULE_AGENT.value
+    retry_count = dict(state.get("retry_count") or {})
+    attempts_before = retry_count.get(node, 0)
+
+    order_no = extract_order_no(state["raw_query"])
+    if not order_no:
+        return {"rule_result": {"sla_status": SLAStatus.NOT_APPLICABLE.value}}
+
+    order, error, attempts = call_with_retry(attempts_before, lambda: get_order(order_no))
+    retry_count[node] = attempts
+    if error:
+        return {"rule_result": {"error": error}, "retry_count": retry_count}
+    if order is None:
+        # Not an error: a query naming an order that doesn't exist is a fact
+        # about the data, not a pipeline degradation (same distinction
+        # ToolNotFound draws from ToolUnavailable in ai_service/tools/errors.py)
+        # — no "error" key here, so response_mapper doesn't mark this partial.
+        return {
+            "rule_result": {"order_no": order_no, "sla_status": SLAStatus.NOT_APPLICABLE.value},
+            "retry_count": retry_count,
+        }
+
+    current_status = order.get("current_status")
+    promised = order.get("promised_delivery_date")
+    # Pre-dispatch and terminal-cancelled orders are N/A per the SLA
+    # Policy's Scope section — the delay clock hasn't started (or never will).
+    if promised is None or current_status in (None, "Pending", "Cancelled"):
+        return {
+            "rule_result": {
+                "order_no": order_no,
+                "current_status": current_status,
+                "sla_status": SLAStatus.NOT_APPLICABLE.value,
+            },
+            "retry_count": retry_count,
+        }
+
+    revised = order.get("revised_delivery_date")
+    # "Delay days" per policy is CURRENT_DATE - promised_delivery_date, but once a
+    # cause-specific SOP has set a revised ETA that's the best current estimate of
+    # actual delivery, so it's used in preference to today's date (matching the
+    # policy's own worked example: 2026-07-09 revised vs. 2026-07-03 promised = 6
+    # days, not a figure that would keep climbing every day the ETA holds steady).
+    effective_date = revised or datetime.date.today()
+    delay_days = max(0, (effective_date - promised).days)
+
+    tier = order.get("sla_tier") or "STANDARD"
+    rule_rows, rule_error, rule_attempts = call_with_retry(
+        0, lambda: run_select(
+            "SELECT max_delay_days, escalation_role FROM sla_rules WHERE sla_tier = %s",
+            (tier,),
+        )
+    )
+    base_result = {
+        "order_no": order_no,
+        "current_status": current_status,
+        "promised_delivery_date": promised.isoformat(),
+        "revised_delivery_date": revised.isoformat() if revised else None,
+        "delay_days": delay_days,
+    }
+    if rule_error or not rule_rows:
+        return {
+            "rule_result": {**base_result, "error": rule_error or f"no sla_rules row for tier {tier}"},
+            "retry_count": retry_count,
+        }
+
+    max_delay_days = rule_rows[0]["max_delay_days"]
+    escalation_role = rule_rows[0]["escalation_role"]
+    if delay_days <= 0:
+        sla_status = SLAStatus.ON_TIME
+    elif delay_days <= max_delay_days:
+        sla_status = SLAStatus.AT_RISK
+    else:
+        sla_status = SLAStatus.BREACHED
+
+    return {
+        "rule_result": {
+            **base_result,
+            "sla_status": sla_status.value,
+            "sla_tier": tier,
+            # Escalation only fires on an actual breach (SLA Policy "Escalation on
+            # Breach") — surfacing a role for an At Risk/On Time order would imply
+            # an escalation that hasn't actually been triggered.
+            "escalation_role": escalation_role if sla_status == SLAStatus.BREACHED else None,
+        },
+        "retry_count": retry_count,
+    }
 
 
 def final_response_agent_node(state: CoPilotState) -> CoPilotState:
-    """MINIMAL placeholder — P3.11 (Day 11) owns real structured-response
-    assembly (order/shipment status, delay days, SLA status, recommended
-    actions, sources). This only echoes what was gathered so the graph
-    has a defined terminal value to test against today."""
-    parts = []
-    if state.get("kb_result"):
-        parts.append(f"kb_result={state['kb_result']}")
-    if state.get("sql_result"):
-        parts.append(f"sql_result={state['sql_result']}")
-    if state.get("api_result"):
-        parts.append(f"api_result={state['api_result']}")
-    if state.get("error"):
-        parts.append(f"error={state['error']}")
-    return {"final_response": "; ".join(parts) or "no data gathered"}
+    """P3.11 — assembles the prose answer_text from whatever kb/sql/api/rule
+    results this query gathered. The structured wire fields (order_status,
+    delay_days, sla_status, sources, ...) are read directly off CoPilotState
+    by the FastAPI boundary (ai_service/response_mapper.py) since
+    CoPilotState itself is frozen and carries no such fields — this node
+    only has to produce the human-readable summary sentence.
+    """
+    kb_result = state.get("kb_result") or {}
+    api_result = state.get("api_result") or {}
+    rule_result = state.get("rule_result") or {}
+    sql_result = state.get("sql_result") or {}
+
+    sentences: list[str] = []
+
+    order_no = rule_result.get("order_no")
+    current_status = rule_result.get("current_status")
+    if order_no and current_status:
+        sentences.append(f"Order {order_no} is currently {current_status}.")
+
+    # Plain DATABASE_QUERY answers (inventory, reporting, anything with no
+    # order number for business_rule_agent to look up) have no rule_result
+    # to draw from — sql_result's rows are the only gathered data, so they're
+    # the answer. Skipped when rule_result already produced an order-status
+    # sentence above, since that's the more precise, authoritative source
+    # for the same question (get_order() vs. arbitrary LLM-generated SQL).
+    sql_rows = sql_result.get("rows")
+    if sql_rows is not None and not current_status:
+        sentences.append(_describe_rows(state["raw_query"], sql_rows))
+
+    shipment_status = api_result.get("shipment_status")
+    location = api_result.get("current_location")
+    delay_reason = api_result.get("delay_reason")
+    if shipment_status:
+        where = f" at {location}" if location else ""
+        sentences.append(f"Shipment status: {shipment_status}{where}.")
+    if delay_reason:
+        sentences.append(f"Cause: {delay_reason}")
+
+    sla_status = rule_result.get("sla_status")
+    delay_days = rule_result.get("delay_days")
+    if sla_status and sla_status != SLAStatus.NOT_APPLICABLE.value:
+        sentences.append(f"SLA status: {sla_status} ({delay_days} day(s) past the promised date).")
+        escalation_role = rule_result.get("escalation_role")
+        if escalation_role:
+            sentences.append(f"Escalated to: {escalation_role}.")
+
+    # The KB's prose answer is only appended for queries it's actually meant
+    # to ground (pure policy/SOP lookups). For a query that already resolved
+    # concrete order/shipment facts, knowledge_base_agent_node still searched
+    # on the raw question text (P3.8) — not tuned for entity lookups — and
+    # its "I have no record of order X" answer would flatly contradict the
+    # operational facts just stated above. Its sources are still surfaced as
+    # citations either way (response_mapper.state_to_fields), just without
+    # this sentence riding along.
+    kb_answer = kb_result.get("answer")
+    has_operational_facts = bool(order_no or shipment_status)
+    if kb_answer and not kb_result.get("abstained") and not has_operational_facts:
+        sentences.append(kb_answer)
+
+    if sentences:
+        return {"final_response": " ".join(sentences)}
+
+    # Nothing gathered anything usable (every branch abstained/erred, or this
+    # was a total classification failure already routed through error_handler).
+    error = (
+        state.get("error")
+        or rule_result.get("error")
+        or api_result.get("error")
+        or kb_result.get("error")
+        or sql_result.get("error")
+    )
+    return {"final_response": None, "error": error or "no data available to answer this question"}
+
+
+_DESCRIBE_ROWS_PROMPT = """You are answering a supply-chain question using ONLY the database rows below \
+— do not use any outside knowledge, and do not invent facts that are not present in the rows.
+
+Question: {question}
+
+Rows (JSON): {rows_json}
+
+Write a single, natural, concise answer (one or two sentences). State the facts plainly; do not \
+mention SQL, databases, rows, or that this data came from a query."""
+
+
+def _describe_rows(question: str, rows: list[dict], limit: int = 20) -> str:
+    """Phrases text_to_sql_agent's rows as a natural answer to the original
+    question. The query and its columns are LLM-generated per-question
+    (ai/agents/text_to_sql_agent) — there's no fixed schema to hang a
+    template off of, so an LLM call (already this codebase's pattern for
+    turning retrieved data into prose — see knowledge_base_agent) reads
+    far better than a raw key=value dump. Falls back to that dump if the
+    LLM call itself fails, so a degraded LLM never means a degraded answer
+    for data that's already sitting right there.
+    """
+    if not rows:
+        return "No matching records were found."
+    prompt = _DESCRIBE_ROWS_PROMPT.format(
+        question=question, rows_json=json.dumps(rows[:limit], default=str)
+    )
+    try:
+        return generate(prompt).strip()
+    except (LLMConfigError, LLMProviderError):
+        return _summarize_rows(rows)
+
+
+def _summarize_rows(rows: list[dict], limit: int = 5) -> str:
+    """Generic, column-agnostic prose rendering of text_to_sql_agent's rows —
+    the fallback for _describe_rows when the LLM call itself fails.
+    Accurate-but-plain beats silently dropping real data."""
+    if not rows:
+        return "No matching records were found."
+    lines = [", ".join(f"{key}={value}" for key, value in row.items()) for row in rows[:limit]]
+    summary = "; ".join(lines) + "."
+    if len(rows) > limit:
+        summary += f" ({len(rows) - limit} more row(s) not shown.)"
+    return summary
 
 
 def error_handler_node(state: CoPilotState) -> CoPilotState:

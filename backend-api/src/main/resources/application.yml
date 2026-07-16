@@ -31,3 +31,12 @@ app:
     # Seconds. docs/api_contracts.md's frozen POST /api/auth/login contract
     # already documents expiresIn: 3600 — keep this in sync with that.
     expiration-seconds: 3600
+
+ai:
+  service:
+    # P1.10: Person 2's FastAPI AI service (ai_service/main.py, uvicorn default port 8001).
+    base-url: ${AI_SERVICE_BASE_URL:http://localhost:8001}
+    connect-timeout-ms: ${AI_SERVICE_CONNECT_TIMEOUT_MS:3000}
+    # Generous: a full LangGraph run can chain several sequential LLM/tool calls
+    # (flagship: text-to-sql + api-status + knowledge-base + business-rule).
+    read-timeout-ms: ${AI_SERVICE_READ_TIMEOUT_MS:35000}

@@ -1,10 +1,11 @@
-"""P2.5 FastAPI AI Service (Day 5) — the hosting boundary for the AI layer.
+"""P2.5/P2.10 FastAPI AI Service — the hosting boundary for the AI layer.
 
-This is the service Spring Boot calls. Its job today is to be a stable,
-correctly-shaped boundary: request/response models, a health check, and
-`POST /ai/query` returning a *temporary* response. The LangGraph workflow
-behind it is Person 3's (P3.8) and gets wired in at P2.10 (Day 11) — until
-then every answer here is a placeholder and says so in `warnings`.
+This is the service Spring Boot calls. `POST /ai/query` invokes the real
+LangGraph pipeline (ai/graph/graph.py, Person 3) and maps its finished
+CoPilotState into the frozen CoPilotResponse wire shape via
+response_mapper.state_to_fields — no keyword routing or placeholder text
+lives here (that was the P2.5-era stand-in; see git history if it's ever
+needed again).
 
 Not to be confused with mock_apis/ (P2.4), which simulates the external ERP /
 shipment / inventory systems and runs on its own port. This app is the AI
@@ -14,29 +15,59 @@ layer's front door; that one is a system the AI layer will eventually call.
 from __future__ import annotations
 
 import logging
+import os
 import uuid
+from concurrent.futures import Future, ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from ai.contracts import RoutingCategory, SLAStatus
+from ai.contracts import CoPilotState
+from ai.graph.graph import build_graph
+from ai_service.response_mapper import state_to_fields
 from ai_service.schemas import AiQueryRequest, AiQueryResponse
 
 logger = logging.getLogger(__name__)
 
-# Disclosed in answer_text, not in a `warnings` field: CoPilotResponse has no
-# such field. `warnings` belongs to Spring Boot's own ChatResponse envelope
-# (Person 1 owns it), so inventing one here would be a silent contract change.
-TEMPORARY_ANSWER_PREFIX = (
-    "[Temporary P2.5 response — the LangGraph pipeline is not wired in yet (P2.10, Day 11).]"
-)
+DEFAULT_GRAPH_TIMEOUT_SECONDS = 30.0
 
 app = FastAPI(
     title="NexChain AI Service",
-    description="Hosting boundary between Spring Boot and the LangGraph agent layer (P2.5).",
+    description="Hosting boundary between Spring Boot and the LangGraph agent layer (P2.5/P2.10).",
     version="1.0.0",
 )
+
+# Built once at process start — StateGraph.compile() is not cheap enough to
+# redo per request, and the compiled graph carries no per-request state of
+# its own (every node reads/writes only the CoPilotState passed into invoke()).
+_graph = build_graph()
+
+# One request at a time can block on an LLM/tool call; a small pool bounds
+# how many concurrent /ai/query calls run without limiting Uvicorn's own
+# worker count. Sized generously since each graph run is I/O-bound, not CPU-bound.
+_executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="ai-graph")
+
+
+def graph_timeout_seconds() -> float:
+    return float(os.environ.get("AI_SERVICE_GRAPH_TIMEOUT_SECONDS", "") or DEFAULT_GRAPH_TIMEOUT_SECONDS)
+
+
+def _initial_state(request: AiQueryRequest, session_id: str) -> CoPilotState:
+    return {
+        "session_id": session_id,
+        "user_id": request.user_id or "unknown",
+        "raw_query": request.query,
+        "intent": "",
+        "sub_intents": [],
+        "kb_result": None,
+        "sql_result": None,
+        "api_result": None,
+        "rule_result": None,
+        "retry_count": {},
+        "final_response": None,
+        "error": None,
+    }
 
 
 @app.exception_handler(RequestValidationError)
@@ -64,34 +95,35 @@ def health() -> dict[str, str]:
 
 @app.post("/ai/query", response_model=AiQueryResponse)
 def query(request: AiQueryRequest) -> AiQueryResponse:
-    """Answer a natural-language supply-chain question.
-
-    Today: a temporary, contract-shaped placeholder. The response is a valid
-    CoPilotResponse so Person 1 can integrate against the real shape now
-    (P2.5's completion gate is exactly that — "Spring Boot can send a question
-    and receive valid JSON"), and P2.10 swaps the body of this function for a
-    LangGraph invocation without the wire contract moving.
+    """Answer a natural-language supply-chain question by running it through
+    the real LangGraph pipeline (intent classification -> KB/SQL/API
+    branches -> business rules -> final response).
 
     `traceId` is echoed back unchanged, so Spring Boot can correlate the call
     (tech-req §9). If Spring Boot didn't send one, we mint it here rather than
-    leaving the audit trail with a hole in it.
+    leaving the audit trail with a hole in it. Graph node failures degrade in
+    place (retry.py) and surface as `partial: true` + `error: "..."` via
+    response_mapper — only a total pipeline failure (unexpected exception, or
+    exceeding the timeout below) reaches the 500/504 handlers, per tech-req §7
+    ("report a clear 'service unavailable' status rather than crashing").
     """
     trace_id = request.trace_id or str(uuid.uuid4())
     session_id = request.session_id or str(uuid.uuid4())
     logger.info("ai_query trace_id=%s session_id=%s", trace_id, session_id)
 
-    # ponytail: no intent classification, no tools, no LLM — that's the whole
-    # point of a P2.5 placeholder. Replaced wholesale at P2.10; don't grow
-    # keyword routing here, Spring Boot's ChatService already mocks that and a
-    # second copy would just be another thing to delete.
-    return AiQueryResponse(
-        trace_id=trace_id,
-        session_id=session_id,
-        answer_text=f'{TEMPORARY_ANSWER_PREFIX} Received: "{request.query}"',
-        intent=RoutingCategory.DATABASE_QUERY,
-        sla_status=SLAStatus.NOT_APPLICABLE,
-        # partial=True is the honest signal that this is not a complete answer;
-        # it's what Spring Boot already keys its degraded-response handling off.
-        partial=True,
-        error=None,
+    future: Future[CoPilotState] = _executor.submit(
+        _graph.invoke, _initial_state(request, session_id)
     )
+    try:
+        final_state = future.result(timeout=graph_timeout_seconds())
+    except FutureTimeoutError:
+        logger.error("ai_query trace_id=%s timed out after %ss", trace_id, graph_timeout_seconds())
+        raise TimeoutError(f"AI pipeline exceeded {graph_timeout_seconds()}s") from None
+
+    fields = state_to_fields(final_state)
+    return AiQueryResponse(trace_id=trace_id, session_id=session_id, **fields)
+
+
+@app.exception_handler(TimeoutError)
+async def _timeout(_request: Request, exc: TimeoutError) -> JSONResponse:
+    return JSONResponse(status_code=504, content={"detail": str(exc)})

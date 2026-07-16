@@ -11,12 +11,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexchain.backend.audit.store.AuditRepository;
+import com.nexchain.backend.chat.client.AiQueryClient;
+import com.nexchain.backend.chat.client.FakeAiQueryClient;
 import com.nexchain.backend.history.store.ConversationHistoryStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -29,11 +35,31 @@ import org.springframework.test.web.servlet.MvcResult;
  * valid ones, and public endpoints (/api/health, /api/auth/login) stay open. Plus Day 7
  * (P1.7) coverage: automatic per-user conversation history. Plus RC-stabilization
  * coverage: /api/audit/** requires the ADMIN role, not just any authenticated user.
+ *
+ * <p>P1.10: the chat pipeline now calls out to Person 2's real FastAPI service via
+ * {@link AiQueryClient}. This class swaps in {@link FakeAiQueryClient} (same scenario
+ * content the old in-process mock produced) so the full /api/chat -> history -> audit
+ * pipeline is still testable without a live ai_service + Postgres + LLM key. The real
+ * {@code RestClientAiQueryClient} wiring is verified separately.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = "spring.datasource.url=jdbc:h2:mem:history-test;DB_CLOSE_DELAY=-1")
+@Import(ApplicationSmokeTests.FakeAiQueryClientConfig.class)
 class ApplicationSmokeTests {
+
+    @TestConfiguration
+    static class FakeAiQueryClientConfig {
+        // Deliberately not named aiQueryClient(): Spring rejects two bean
+        // definitions with the same name (allow-bean-definition-overriding
+        // defaults to false) even with @Primary, which only breaks ties
+        // between differently-named candidates of the same type.
+        @Bean
+        @Primary
+        AiQueryClient fakeAiQueryClient() {
+            return new FakeAiQueryClient();
+        }
+    }
 
     private static final String DEMO_EMAIL = "user@example.com";
     private static final String DEMO_PASSWORD = "password";
@@ -597,9 +623,12 @@ class ApplicationSmokeTests {
                 .andExpect(jsonPath("$[0].status").value("SUCCESS"))
                 .andExpect(jsonPath("$[0].kbSources", hasSize(1)))
                 .andExpect(jsonPath("$[0].traceId").exists())
-                .andExpect(jsonPath("$[0].warnings", hasSize(1)))
-                // Nothing real generates these yet (Day 4 mock chat pipeline, P2.10/P3 not wired) —
-                // reported as empty/null rather than fabricated.
+                // P1.10: a clean success carries no warnings (the Day 4 mock disclaimer this
+                // used to assert on is gone — see FakeAiQueryClient/ChatService).
+                .andExpect(jsonPath("$[0].warnings", hasSize(0)))
+                // Nothing real generates these yet (P2.10/P3's graph doesn't report per-agent
+                // invocation lists or raw SQL back through the wire contract) — reported as
+                // empty/null rather than fabricated.
                 .andExpect(jsonPath("$[0].agentsInvoked", hasSize(0)))
                 .andExpect(jsonPath("$[0].generatedSql").doesNotExist());
     }

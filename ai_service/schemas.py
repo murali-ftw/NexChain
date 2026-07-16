@@ -22,6 +22,14 @@ final. See ai_service/README.md for the reasoning in full.
    changed silently" (docs/team_plan.md), so this subclasses CoPilotResponse
    instead of editing it. If Person 3 folds the fields into the frozen contract,
    delete the two declarations below and the subclass collapses to a no-op.
+
+P1.10 contract-validation fix: `Source` (ai/contracts.py) is a plain
+BaseModel with no alias generator, so a bare `list[Source]` field would put
+snake_case objects (`document_name`, `doc_id`) inside this otherwise-camelCase
+response — Spring's `SourceDto` (camelCase) would silently deserialize every
+nested source as all-null. `sources` below overrides the inherited field with
+`list[SourceOut]`, the same camelCase-on-the-wire treatment every top-level
+field already gets, without editing the frozen `Source` model itself.
 """
 
 from __future__ import annotations
@@ -38,12 +46,32 @@ class _CamelModel(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
 
+class SourceOut(_CamelModel):
+    """Wire shape of ai.contracts.Source — camelCase, so it matches Spring
+    Boot's SourceDto and Angular's Source interface like every other field
+    here, instead of the frozen model's own snake_case."""
+
+    document_name: str
+    snippet: str | None = None
+    doc_id: int | None = None
+    score: float | None = None
+
+
 class AiQueryRequest(_CamelModel):
     """Body of POST /ai/query, sent by Spring Boot (docs/api_contracts.md)."""
 
     query: str = Field(min_length=1, description="The user's natural-language question.")
     session_id: str | None = Field(
         default=None, description="Conversation session; Spring Boot mints one if absent."
+    )
+    user_id: str | None = Field(
+        default=None,
+        description=(
+            "Authenticated caller's username, forwarded from Spring Boot's JWT "
+            "(Authentication#getName()). CoPilotState.user_id requires a value; "
+            "Spring Boot is the only layer that terminates user auth (tech-req §8), "
+            "so FastAPI never resolves this itself."
+        ),
     )
     trace_id: str | None = Field(
         default=None,
@@ -68,3 +96,11 @@ class AiQueryResponse(CoPilotResponse, _CamelModel):
     # PROVISIONAL — pending Person 3 sign-off; see module docstring.
     promised_delivery_date: str | None = None
     revised_delivery_date: str | None = None
+
+    # Overrides CoPilotResponse's list[Source] with the camelCase wire shape — see
+    # the "P1.10 contract-validation fix" note in the module docstring. mypy flags
+    # this as an unsound field-type narrowing (list is invariant); Pydantic itself
+    # doesn't enforce LSP on field overrides, and this is the only way to fix the
+    # wire shape without editing the frozen Source model — safe in practice since
+    # nothing constructs an AiQueryResponse with plain Source instances.
+    sources: list[SourceOut] = Field(default_factory=list)  # type: ignore[assignment]
