@@ -1,7 +1,13 @@
 <div class="history-page">
   <header class="history-page__header">
     <h1>Query History</h1>
-    <input class="history-page__search" type="text" placeholder="Search past queries..." />
+    <input
+      class="history-page__search"
+      type="text"
+      placeholder="Search past queries..."
+      [ngModel]="searchTerm()"
+      (ngModelChange)="onSearchTermChange($event)"
+    />
   </header>
 
   @if (isLoading()) {
@@ -10,13 +16,21 @@
     <p class="history-page__empty">{{ errorMessage() }}</p>
   } @else if (items().length === 0) {
     <p class="history-page__empty">You haven't asked anything yet.</p>
+  } @else if (filteredItems().length === 0) {
+    <p class="history-page__empty">No conversations match "{{ searchTerm() }}".</p>
   } @else {
     <ul class="history-page__list">
-      @for (item of items(); track item.id) {
+      @for (item of filteredItems(); track item.id) {
         <li class="history-item">
-          <div class="history-item__question">{{ item.question }}</div>
-          <div class="history-item__summary">{{ item.answerSummary }}</div>
-          <div class="history-item__timestamp">{{ item.timestamp | date: 'medium' }}</div>
+          <div class="history-item__body" (click)="restore(item)">
+            <div class="history-item__question">{{ item.question }}</div>
+            <div class="history-item__summary">{{ item.answerSummary }}</div>
+            <div class="history-item__timestamp">{{ item.timestamp | date: 'medium' }}</div>
+          </div>
+          <div class="history-item__actions">
+            <button type="button" class="history-item__restore" (click)="restore(item)">Restore</button>
+            <button type="button" class="history-item__delete" (click)="remove(item)">Delete</button>
+          </div>
         </li>
       }
     </ul>

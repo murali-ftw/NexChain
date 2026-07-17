@@ -1,0 +1,10 @@
+@if (actions.length > 0) {
+  <div class="recommendations">
+    <h4>Recommended actions</h4>
+    <ol>
+      @for (action of actions; track action) {
+        <li>{{ action }}</li>
+      }
+    </ol>
+  </div>
+}

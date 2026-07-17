@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import re
 import time
+from typing import cast
 
 from ai.agents.knowledge_base_agent.agent import KnowledgeBaseResult, retrieve_and_assemble
 from ai.agents.knowledge_base_agent.agent import answer_policy_question
@@ -99,7 +100,7 @@ def run() -> None:
 
     for i, case in enumerate(TEST_QUESTIONS, start=1):
         question = str(case["question"])
-        expected_keywords = list(case["expected_doc_keywords"])  # type: ignore[arg-type]
+        expected_keywords = cast("list[str]", case["expected_doc_keywords"])
         print(f"\n[{i}/{len(TEST_QUESTIONS)}] Q: {question}")
 
         try:
@@ -138,8 +139,7 @@ def run() -> None:
             "EVAL INCOMPLETE: one or more questions could not be graded because no "
             "working LLM provider is configured.\n"
             "Set LLM_PRIMARY_API_KEY (with LLM_PRIMARY_PROVIDER=gemini and "
-            "LLM_PRIMARY_MODEL=<model>) in ai/.env, or the LLM_FALLBACK_* equivalents "
-            "for Grok, then re-run:\n"
+            "LLM_PRIMARY_MODEL=<model>) in ai/.env, then re-run:\n"
             "    python -m ai.agents.knowledge_base_agent.eval"
         )
     print(

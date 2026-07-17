@@ -1,15 +1,17 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { AuditApiService } from '../../services/audit-api.service';
 import { AuditEntry } from '../../models/audit.model';
 
-/** Day 5 (P1.5): fetches real audit records from Spring Boot's GET /api/audit —
- * see docs/api_contracts.md. Backend data is a fixed mock today; no persistence
- * or authorization until P1.8 (Day 8). */
+/** Day 8 (P1.8): fetches real, persisted audit records from Spring Boot's GET /api/audit
+ * — see docs/api_contracts.md. Global admin-facing log (RBAC deferred): every
+ * authenticated caller sees every user's entries, not just their own. Adds search,
+ * user/date/intent filters, a detail drawer (GET /api/audit/{id}), and refresh. */
 @Component({
   selector: 'app-audit-page',
   standalone: true,
-  imports: [DatePipe],
+  imports: [DatePipe, FormsModule],
   templateUrl: './audit-page.component.html',
   styleUrl: './audit-page.component.scss',
 })
@@ -19,9 +21,72 @@ export class AuditPageComponent implements OnInit {
   readonly isLoading = signal(true);
   readonly errorMessage = signal<string | null>(null);
 
+  readonly searchTerm = signal('');
+  readonly userFilter = signal('');
+  readonly intentFilter = signal('');
+  readonly dateFrom = signal('');
+  readonly dateTo = signal('');
+
+  readonly selectedEntry = signal<AuditEntry | null>(null);
+  readonly isDetailLoading = signal(false);
+  readonly detailError = signal<string | null>(null);
+
+  /** Distinct intents actually present in the loaded log, for the filter dropdown —
+   * not hardcoded against Person 3's intent taxonomy, since that's their contract to evolve. */
+  readonly availableIntents = computed(() => {
+    const intents = new Set<string>();
+    for (const entry of this.entries()) {
+      for (const intent of entry.detectedIntent) {
+        intents.add(intent);
+      }
+    }
+    return [...intents].sort();
+  });
+
+  readonly filteredEntries = computed(() => {
+    const term = this.searchTerm().trim().toLowerCase();
+    const user = this.userFilter().trim().toLowerCase();
+    const intent = this.intentFilter();
+    const from = this.dateFrom();
+    const to = this.dateTo();
+
+    return this.entries().filter((entry) => {
+      if (term) {
+        const haystack = `${entry.rawQuestion} ${entry.traceId} ${entry.user}`.toLowerCase();
+        if (!haystack.includes(term)) {
+          return false;
+        }
+      }
+      if (user && !entry.user.toLowerCase().includes(user)) {
+        return false;
+      }
+      if (intent && !entry.detectedIntent.includes(intent)) {
+        return false;
+      }
+      const entryDate = entry.timestamp.slice(0, 10);
+      if (from && entryDate < from) {
+        return false;
+      }
+      if (to && entryDate > to) {
+        return false;
+      }
+      return true;
+    });
+  });
+
   constructor(private readonly auditApi: AuditApiService) {}
 
   ngOnInit(): void {
+    this.load();
+  }
+
+  refresh(): void {
+    this.load();
+  }
+
+  private load(): void {
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
     this.auditApi.getAuditLog().subscribe({
       next: (entries) => {
         this.entries.set(entries);
@@ -34,5 +99,26 @@ export class AuditPageComponent implements OnInit {
         this.isLoading.set(false);
       },
     });
+  }
+
+  openDetail(entry: AuditEntry): void {
+    this.selectedEntry.set(entry);
+    this.isDetailLoading.set(true);
+    this.detailError.set(null);
+    this.auditApi.getAuditEntry(entry.auditId).subscribe({
+      next: (fullEntry) => {
+        this.selectedEntry.set(fullEntry);
+        this.isDetailLoading.set(false);
+      },
+      error: (err: unknown) => {
+        this.detailError.set(err instanceof Error ? err.message : 'Unable to load this audit entry.');
+        this.isDetailLoading.set(false);
+      },
+    });
+  }
+
+  closeDetail(): void {
+    this.selectedEntry.set(null);
+    this.detailError.set(null);
   }
 }

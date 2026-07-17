@@ -17,7 +17,7 @@
   </nav>
 
   <div class="sidebar__footer">
-    <span class="sidebar__user">Signed in as Demo User</span>
+    <span class="sidebar__user">Signed in as {{ authService.currentUser()?.username ?? 'Unknown' }}</span>
     <span class="sidebar__status" [class]="'sidebar__status--' + backendStatus()">
       @switch (backendStatus()) {
         @case ('checking') { Backend: checking... }
@@ -25,5 +25,6 @@
         @case ('unreachable') { Backend: unreachable }
       }
     </span>
+    <button type="button" class="sidebar__logout" (click)="onLogout()">Log out</button>
   </div>
 </aside>

@@ -94,6 +94,22 @@
   }
 }
 
+.sidebar__logout {
+  align-self: flex-start;
+  margin-top: 8px;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-danger);
+  }
+}
+
 @media (max-width: 900px) {
   .sidebar {
     width: 100%;

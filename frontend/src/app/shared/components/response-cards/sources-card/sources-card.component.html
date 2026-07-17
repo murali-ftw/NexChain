@@ -1,0 +1,10 @@
+<div class="sources" aria-label="Sources">
+  @for (badge of toolBadges(); track badge) {
+    <span class="source-badge" [class]="'source-badge--' + badge.toLowerCase()">{{ badge }}</span>
+  }
+  @for (source of sources; track source.documentName) {
+    <span class="source-badge source-badge--doc" [title]="source.snippet ?? ''">
+      {{ source.documentName }}
+    </span>
+  }
+</div>

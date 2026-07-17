@@ -1,0 +1,14 @@
+@if (hasContent()) {
+  @if (delayReason) {
+    <div class="card-row">
+      <dt>Reason for delay</dt>
+      <dd>{{ delayReason }}</dd>
+    </div>
+  }
+  @if (delayDays != null) {
+    <div class="card-row">
+      <dt>Delay</dt>
+      <dd>{{ delayDays }} day{{ delayDays === 1 ? '' : 's' }}</dd>
+    </div>
+  }
+}

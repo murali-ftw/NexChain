@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { fakeAsync, TestBed, tick } from '@angular/core/testing';
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { environment } from '../../../../../environments/environment';
 import {
   FLAGSHIP_RESPONSE,
@@ -18,13 +19,23 @@ function toWireResponse(fixture: Omit<ChatResponse, 'traceId' | 'sessionId' | 't
   return { ...fixture, traceId: 'trace-1', sessionId: 'session-1', timestamp: new Date().toISOString() };
 }
 
+/** No `sessionId` query param by default — every existing test starts a fresh conversation,
+ * same as before restore existed. Tests that need a restore id override this. */
+function activatedRouteStub(queryParams: Record<string, string> = {}) {
+  return { snapshot: { queryParamMap: convertToParamMap(queryParams) } };
+}
+
 describe('ChatPageComponent', () => {
   let httpMock: HttpTestingController;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ChatPageComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: ActivatedRoute, useValue: activatedRouteStub() },
+      ],
     }).compileComponents();
     httpMock = TestBed.inject(HttpTestingController);
   });
@@ -255,4 +266,79 @@ describe('ChatPageComponent', () => {
     expect(component.messages().length).toBe(4);
     expect(component.messages()[3].kind).toBe('error');
   }));
+
+  describe('restoring a conversation from History (P1.7)', () => {
+    const HISTORY_DETAIL_URL = `${environment.apiBaseUrl}/api/chat/history/sess-1`;
+
+    beforeEach(async () => {
+      await TestBed.resetTestingModule()
+        .configureTestingModule({
+          imports: [ChatPageComponent],
+          providers: [
+            provideHttpClient(),
+            provideHttpClientTesting(),
+            { provide: ActivatedRoute, useValue: activatedRouteStub({ sessionId: 'sess-1' }) },
+          ],
+        })
+        .compileComponents();
+      httpMock = TestBed.inject(HttpTestingController);
+    });
+
+    it('loads every turn of the restored conversation and renders it', () => {
+      const fixture = TestBed.createComponent(ChatPageComponent);
+      fixture.detectChanges();
+      const component = fixture.componentInstance;
+
+      expect(component.isRestoring()).toBe(true);
+
+      httpMock.expectOne(HISTORY_DETAIL_URL).flush({
+        id: 'sess-1',
+        sessionId: 'sess-1',
+        turns: [
+          { question: 'Is SKU-1001 in stock?', response: toWireResponse(INVENTORY_RESPONSE), timestamp: new Date().toISOString() },
+        ],
+      });
+      fixture.detectChanges();
+
+      expect(component.isRestoring()).toBe(false);
+      expect(component.messages().length).toBe(2);
+      expect(component.messages()[0].kind).toBe('user');
+      expect(component.messages()[1].kind).toBe('assistant');
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain('Is SKU-1001 in stock?');
+    });
+
+    it('continues the restored conversation under its original session id', () => {
+      const fixture = TestBed.createComponent(ChatPageComponent);
+      fixture.detectChanges();
+      const component = fixture.componentInstance;
+
+      httpMock.expectOne(HISTORY_DETAIL_URL).flush({
+        id: 'sess-1',
+        sessionId: 'sess-1',
+        turns: [
+          { question: 'Is SKU-1001 in stock?', response: toWireResponse(INVENTORY_RESPONSE), timestamp: new Date().toISOString() },
+        ],
+      });
+      fixture.detectChanges();
+
+      component.onSend('And the SLA policy?');
+      const req = httpMock.expectOne(CHAT_URL);
+      expect(req.request.body.sessionId).toBe('sess-1');
+      req.flush(toWireResponse(SLA_POLICY_RESPONSE));
+
+      expect(component.messages().length).toBe(4);
+    });
+
+    it('shows an error state when the conversation cannot be restored', () => {
+      const fixture = TestBed.createComponent(ChatPageComponent);
+      fixture.detectChanges();
+      const component = fixture.componentInstance;
+
+      httpMock.expectOne(HISTORY_DETAIL_URL).flush('Not found', { status: 404, statusText: 'Not Found' });
+      fixture.detectChanges();
+
+      expect(component.isRestoring()).toBe(false);
+      expect(component.messages()[0].kind).toBe('error');
+    });
+  });
 });

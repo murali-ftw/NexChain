@@ -1,0 +1,14 @@
+@if (hasContent()) {
+  @if (shipmentStatus) {
+    <div class="card-row">
+      <dt>Shipment status</dt>
+      <dd>{{ shipmentStatus }}</dd>
+    </div>
+  }
+  @if (currentLocation) {
+    <div class="card-row">
+      <dt>Current location</dt>
+      <dd>{{ currentLocation }}</dd>
+    </div>
+  }
+}

@@ -68,6 +68,12 @@
   }
 }
 
+.login__error {
+  font-size: 12px;
+  color: var(--color-danger, #d32f2f);
+  margin: -8px 0 16px;
+}
+
 .login__submit {
   border: none;
   border-radius: var(--radius-sm);
@@ -77,7 +83,12 @@
   padding: 10px 12px;
   margin-top: 8px;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: var(--color-primary-hover);
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
   }
 }
