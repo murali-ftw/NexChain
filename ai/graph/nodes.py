@@ -11,6 +11,7 @@ from __future__ import annotations
 import datetime
 import json
 
+from ai.agents.business_rule_agent.rules import RuleEngineInput, evaluate
 from ai.agents.knowledge_base_agent.agent import answer_policy_question
 from ai.agents.text_to_sql_agent.agent import generate_sql
 from ai.agents.text_to_sql_agent.db_boundary import db_query, resolve_tracking_no
@@ -20,7 +21,7 @@ from ai.graph.entities import extract_order_no, extract_tracking_no
 from ai.graph.retry import call_with_retry
 from ai.graph.state import CoPilotState
 from ai.llm_client import LLMConfigError, LLMProviderError, generate
-from ai_service.tools.db import get_order, run_select
+from ai_service.tools.db import get_order
 
 
 def knowledge_base_agent_node(state: CoPilotState) -> CoPilotState:
@@ -148,10 +149,14 @@ def api_status_agent_node(state: CoPilotState) -> CoPilotState:
 
 
 def business_rule_agent_node(state: CoPilotState) -> CoPilotState:
-    """P3.10 — SLA breach / delay-day calculation, per
-    ai/knowledge_base/01_sla_policy.md's Breach Determination Logic
-    (worked example: SO-45892, GOLD, 6-day delay > 5-day threshold =>
-    Breached, Logistics Manager).
+    """P3.10 — SLA breach detection, delay calculation, escalation severity,
+    and corrective-action selection, delegated to the pure, unit-tested rule
+    engine (ai/agents/business_rule_agent/rules.py — 10/10 exact-match
+    against hardcoded scenarios including the flagship, both severity tiers
+    of At Risk, and every tier's breach threshold boundary). This node's job
+    is only to fetch the real order data and translate it into
+    RuleEngineInput/Output; the deterministic classification logic itself
+    lives in rules.py so it's testable without a live DB.
 
     Re-fetches the order via db.get_order() rather than reading
     sql_result — text_to_sql_agent's SQL is LLM-generated from the raw
@@ -159,6 +164,12 @@ def business_rule_agent_node(state: CoPilotState) -> CoPilotState:
     fixed, authoritative query that already joins customers.sla_tier
     (db.py's own docstring: "the Business Rule Agent needs the
     customer's sla_tier ... to decide breach/escalation").
+
+    Tier thresholds/escalation roles come from rules.TIER_RULES (sourced
+    from 01_sla_policy.md / 05_escalation_matrix.md) rather than a live
+    sla_rules query — those are documented constants, not operational data
+    expected to change without a doc update, so this also drops a DB
+    round-trip the previous inline version made per call.
 
     Every branch of next_pending_node's routing (ai/graph/routing.py)
     passes through this node, including single-source queries with no
@@ -189,65 +200,39 @@ def business_rule_agent_node(state: CoPilotState) -> CoPilotState:
 
     current_status = order.get("current_status")
     promised = order.get("promised_delivery_date")
-    # Pre-dispatch and terminal-cancelled orders are N/A per the SLA
-    # Policy's Scope section — the delay clock hasn't started (or never will).
-    if promised is None or current_status in (None, "Pending", "Cancelled"):
-        return {
-            "rule_result": {
-                "order_no": order_no,
-                "current_status": current_status,
-                "sla_status": SLAStatus.NOT_APPLICABLE.value,
-            },
-            "retry_count": retry_count,
-        }
-
     revised = order.get("revised_delivery_date")
     # "Delay days" per policy is CURRENT_DATE - promised_delivery_date, but once a
     # cause-specific SOP has set a revised ETA that's the best current estimate of
     # actual delivery, so it's used in preference to today's date (matching the
     # policy's own worked example: 2026-07-09 revised vs. 2026-07-03 promised = 6
     # days, not a figure that would keep climbing every day the ETA holds steady).
-    effective_date = revised or datetime.date.today()
-    delay_days = max(0, (effective_date - promised).days)
+    as_of_date = revised or datetime.date.today()
 
-    tier = order.get("sla_tier") or "STANDARD"
-    rule_rows, rule_error, rule_attempts = call_with_retry(
-        0, lambda: run_select(
-            "SELECT max_delay_days, escalation_role FROM sla_rules WHERE sla_tier = %s",
-            (tier,),
+    result = evaluate(
+        RuleEngineInput(
+            order_no=order_no,
+            sla_tier=order.get("sla_tier"),
+            current_status=current_status,
+            promised_delivery_date=promised,
+            revised_delivery_date=revised,
+            as_of_date=as_of_date,
+            shipment_status=(state.get("api_result") or {}).get("shipment_status"),
+            delay_reason=(state.get("api_result") or {}).get("delay_reason"),
         )
     )
-    base_result = {
-        "order_no": order_no,
-        "current_status": current_status,
-        "promised_delivery_date": promised.isoformat(),
-        "revised_delivery_date": revised.isoformat() if revised else None,
-        "delay_days": delay_days,
-    }
-    if rule_error or not rule_rows:
-        return {
-            "rule_result": {**base_result, "error": rule_error or f"no sla_rules row for tier {tier}"},
-            "retry_count": retry_count,
-        }
-
-    max_delay_days = rule_rows[0]["max_delay_days"]
-    escalation_role = rule_rows[0]["escalation_role"]
-    if delay_days <= 0:
-        sla_status = SLAStatus.ON_TIME
-    elif delay_days <= max_delay_days:
-        sla_status = SLAStatus.AT_RISK
-    else:
-        sla_status = SLAStatus.BREACHED
 
     return {
         "rule_result": {
-            **base_result,
-            "sla_status": sla_status.value,
-            "sla_tier": tier,
-            # Escalation only fires on an actual breach (SLA Policy "Escalation on
-            # Breach") — surfacing a role for an At Risk/On Time order would imply
-            # an escalation that hasn't actually been triggered.
-            "escalation_role": escalation_role if sla_status == SLAStatus.BREACHED else None,
+            "order_no": order_no,
+            "current_status": current_status,
+            "promised_delivery_date": promised.isoformat() if promised else None,
+            "revised_delivery_date": revised.isoformat() if revised else None,
+            "delay_days": result.delay_days,
+            "sla_status": result.sla_status.value,
+            "sla_tier": order.get("sla_tier"),
+            "severity": result.severity,
+            "escalation_role": result.escalation_role,
+            "recommended_actions": result.recommended_actions,
         },
         "retry_count": retry_count,
     }
