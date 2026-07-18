@@ -50,18 +50,11 @@ def _first_error(state: CoPilotState) -> str | None:
     return state.get("error")
 
 
-def _recommended_actions(rule_result: dict, api_result: dict) -> list[str]:
-    actions: list[str] = []
-    if rule_result.get("sla_status") == SLAStatus.BREACHED.value:
-        escalation_role = rule_result.get("escalation_role")
-        if escalation_role:
-            actions.append(f"Escalate to the {escalation_role}.")
-    delay_reason = api_result.get("delay_reason")
-    if delay_reason:
-        actions.append(f"Review the root cause ({delay_reason}) and follow the applicable SOP.")
-    if rule_result.get("revised_delivery_date"):
-        actions.append("Notify the customer with the revised delivery estimate.")
-    return actions
+def _recommended_actions(rule_result: dict) -> list[str]:
+    """The SOP-specific list business_rule_agent_node already computed
+    (rules.py::corrective_actions) — not reconstructed here, since that would
+    just be a worse, uncited approximation of what rule_result already has."""
+    return rule_result.get("recommended_actions") or []
 
 
 def _sources(kb_result: dict) -> list[SourceOut]:
@@ -95,7 +88,7 @@ def state_to_fields(state: CoPilotState) -> dict:
         "delay_reason": api_result.get("delay_reason"),
         "delay_days": rule_result.get("delay_days"),
         "sla_status": sla_status,
-        "recommended_actions": _recommended_actions(rule_result, api_result),
+        "recommended_actions": _recommended_actions(rule_result),
         "sources": _sources(kb_result),
         "partial": error is not None,
         "error": error,

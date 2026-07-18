@@ -11,6 +11,7 @@ Where this file and those docs disagree, the docs win — fix this file.
 
 from __future__ import annotations
 
+from datetime import date
 from enum import Enum
 from typing import TypedDict
 
@@ -253,3 +254,7 @@ class CoPilotResponse(BaseModel):
     sources: list[Source] = Field(default_factory=list)
     partial: bool = False  # set when a data source was unavailable after 1 retry (§7)
     error: str | None = None
+    # Amended Day 11 (Person 3 decision, ai/CONTRACTS.md §8 changelog): folded in from
+    # Person 1's provisional AiQueryResponse subclass (ai_service/schemas.py).
+    promised_delivery_date: date | None = None
+    revised_delivery_date: date | None = None

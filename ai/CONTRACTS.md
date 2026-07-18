@@ -219,6 +219,15 @@ Angular (P1.9):
 | `sources` | `list[Source]` | Default `[]`. |
 | `partial` | `bool` | Set when a data source was unavailable after 1 retry (§7). Default `False`. |
 | `error` | `str \| None` | |
+| `promised_delivery_date` | `date \| None` | Added 2026-07-17, see changelog below. |
+| `revised_delivery_date` | `date \| None` | Added 2026-07-17, see changelog below. |
+
+**Changelog:**
+
+- **2026-07-17** — Amended `CoPilotResponse` to add `promised_delivery_date` /
+  `revised_delivery_date` (Person 3 decision, replacing Person 1's provisional
+  `AiQueryResponse` subclass in `ai_service/schemas.py`) — pending Person 1 +
+  Person 2 confirmation.
 
 ---
 
