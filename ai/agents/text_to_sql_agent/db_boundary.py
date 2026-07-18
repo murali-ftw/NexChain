@@ -41,7 +41,12 @@ def db_query(sql: str) -> DBResult:
         logger.warning(
             "tool=db_query status=rejected sql=%s reason=%s", sql, validation.reason
         )
-        raise ToolError("db_query", f"rejected: {validation.reason}", retryable=False, status_code=400)
+        raise ToolError(
+            "db_query",
+            f"rejected: {validation.reason}",
+            retryable=False,
+            status_code=400,
+        )
     return DBResult(rows=to_jsonable_python(run_select(validation.safe_sql)))
 
 

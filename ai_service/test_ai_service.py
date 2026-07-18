@@ -62,7 +62,12 @@ def test_query_returns_valid_json_for_a_question() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["answerText"]
-    assert body["intent"] in {"KNOWLEDGE_QUERY", "DATABASE_QUERY", "API_QUERY", "MULTI_TOOL_QUERY"}
+    assert body["intent"] in {
+        "KNOWLEDGE_QUERY",
+        "DATABASE_QUERY",
+        "API_QUERY",
+        "MULTI_TOOL_QUERY",
+    }
     assert body["slaStatus"] in {"On Time", "At Risk", "Breached", "N/A"}
     assert body["error"] is None
 
@@ -97,7 +102,9 @@ def test_response_fields_cover_spring_boot_chat_response() -> None:
     java_fields = _java_record_fields(CHAT_RESPONSE_JAVA) - SPRING_OWNED_FIELDS
     body = client.post("/ai/query", json={"query": "anything"}).json()
     missing = java_fields - set(body)
-    assert not missing, f"AI service response is missing fields Spring Boot expects: {missing}"
+    assert not missing, (
+        f"AI service response is missing fields Spring Boot expects: {missing}"
+    )
 
 
 def test_provisional_delivery_date_fields_are_present() -> None:
@@ -122,5 +129,7 @@ def test_missing_query_is_rejected() -> None:
 def test_snake_case_input_is_also_accepted() -> None:
     """populate_by_name=True: tolerate either casing on the way in, so a
     Python caller (Person 3's tests) doesn't have to speak camelCase."""
-    body = client.post("/ai/query", json={"query": "anything", "trace_id": "t-1"}).json()
+    body = client.post(
+        "/ai/query", json={"query": "anything", "trace_id": "t-1"}
+    ).json()
     assert body["traceId"] == "t-1"

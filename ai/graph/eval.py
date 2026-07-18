@@ -19,6 +19,7 @@ land real data in state, not just get visited.)
 
 from __future__ import annotations
 
+from typing import TypedDict
 from unittest.mock import patch
 
 from ai.agents.intent_classifier.classifier import IntentResult
@@ -32,7 +33,14 @@ NODE_RESULT_FIELD = {
     "knowledge_base_agent": "kb_result",
 }
 
-CASES = [
+
+class _Case(TypedDict):
+    label: str
+    query: str
+    must_visit: set[str]
+
+
+CASES: list[_Case] = [
     {
         "label": "KNOWLEDGE_QUERY",
         "query": "What is our SLA policy for customs holds?",
@@ -147,7 +155,9 @@ def run_error_handler_case() -> bool:
     ):
         path, state = _run(graph, "gibberish query for testing")
     print(f"  path: {' -> '.join(path)}")
-    print(f"  error={state.get('error')} final_response={state.get('final_response')!r}")
+    print(
+        f"  error={state.get('error')} final_response={state.get('final_response')!r}"
+    )
     ok = path == ["intent_classifier", "error_handler", "final_response_agent"]
     print("  PASS" if ok else "  FAIL")
     return ok
@@ -158,6 +168,8 @@ if __name__ == "__main__":
     error_handler_ok = run_error_handler_case()
 
     print(f"\n{'=' * 60}")
-    print(f"Path gate: {passed}/{total} cases passed (correct routing AND real data, not just visitation).")
+    print(
+        f"Path gate: {passed}/{total} cases passed (correct routing AND real data, not just visitation)."
+    )
     print(f"error_handler routing: {'PASS' if error_handler_ok else 'FAIL'}")
     print("GATE MET" if passed == total and error_handler_ok else "GATE NOT MET")

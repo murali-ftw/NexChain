@@ -108,7 +108,9 @@ def run(only_ids: set[int] | None = None) -> None:
     baseline_passed = 0
     baseline_total = 0
     llm_unavailable = False
-    category_stats: dict[str, list[int]] = defaultdict(lambda: [0, 0])  # [passed, total]
+    category_stats: dict[str, list[int]] = defaultdict(
+        lambda: [0, 0]
+    )  # [passed, total]
 
     for n, (i, case) in enumerate(cases, start=1):
         question = str(case["question"])

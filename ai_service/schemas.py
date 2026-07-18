@@ -58,9 +58,12 @@ class SourceOut(_CamelModel):
 class AiQueryRequest(_CamelModel):
     """Body of POST /ai/query, sent by Spring Boot (docs/api_contracts.md)."""
 
-    query: str = Field(min_length=1, description="The user's natural-language question.")
+    query: str = Field(
+        min_length=1, description="The user's natural-language question."
+    )
     session_id: str | None = Field(
-        default=None, description="Conversation session; Spring Boot mints one if absent."
+        default=None,
+        description="Conversation session; Spring Boot mints one if absent.",
     )
     user_id: str | None = Field(
         default=None,

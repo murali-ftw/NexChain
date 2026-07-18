@@ -76,7 +76,9 @@ def state_to_fields(state: CoPilotState) -> dict:
 
     error = _first_error(state)
     sla_status = (
-        SLAStatus(rule_result["sla_status"]) if rule_result.get("sla_status") else SLAStatus.NOT_APPLICABLE
+        SLAStatus(rule_result["sla_status"])
+        if rule_result.get("sla_status")
+        else SLAStatus.NOT_APPLICABLE
     )
 
     return {

@@ -15,7 +15,11 @@ from dataclasses import dataclass, field
 
 from ai.agents.text_to_sql_agent.prompts import build_prompt, build_retry_prompt
 from ai.agents.text_to_sql_agent.schema_context import build_schema_context
-from ai.agents.text_to_sql_agent.validator import ValidationResult, extract_tables, validate_sql
+from ai.agents.text_to_sql_agent.validator import (
+    ValidationResult,
+    extract_tables,
+    validate_sql,
+)
 from ai.contracts import MAX_RETRIES_PER_NODE
 from ai.llm_client import generate
 

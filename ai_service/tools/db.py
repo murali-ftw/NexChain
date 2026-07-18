@@ -60,7 +60,9 @@ def dsn() -> str:
 
 
 def timeout_seconds() -> float:
-    return float(os.environ.get("AI_SERVICE_DB_TIMEOUT_SECONDS", "") or DEFAULT_TIMEOUT_SECONDS)
+    return float(
+        os.environ.get("AI_SERVICE_DB_TIMEOUT_SECONDS", "") or DEFAULT_TIMEOUT_SECONDS
+    )
 
 
 def run_select(sql: str, params: tuple | None = None) -> list[dict]:
@@ -85,12 +87,15 @@ def run_select(sql: str, params: tuple | None = None) -> list[dict]:
     """
     logger.info("tool=%s sql=%s", TOOL, sql)
     try:
-        with psycopg.connect(
-            dsn(),
-            row_factory=dict_row,
-            connect_timeout=int(timeout_seconds()),
-            options=f"-c statement_timeout={int(timeout_seconds() * 1000)}",
-        ) as conn, conn.cursor() as cur:
+        with (
+            psycopg.connect(
+                dsn(),
+                row_factory=dict_row,
+                connect_timeout=int(timeout_seconds()),
+                options=f"-c statement_timeout={int(timeout_seconds() * 1000)}",
+            ) as conn,
+            conn.cursor() as cur,
+        ):
             cur.execute(sql, params)
             return cur.fetchall()
     except psycopg.OperationalError as exc:

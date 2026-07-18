@@ -19,7 +19,11 @@ from ai.graph.nodes import (
     knowledge_base_agent_node,
     text_to_sql_agent_node,
 )
-from ai.graph.routing import ALL_ROUTE_TARGETS, next_pending_node, route_after_supervisor
+from ai.graph.routing import (
+    ALL_ROUTE_TARGETS,
+    next_pending_node,
+    route_after_supervisor,
+)
 from ai.graph.state import CoPilotState
 from ai.graph.supervisor import supervisor_node
 
@@ -58,7 +62,9 @@ def build_graph():
     for node in _BRANCH_NODES:
         graph.add_conditional_edges(node.value, next_pending_node, _ROUTE_PATH_MAP)
 
-    graph.add_edge(AgentNode.BUSINESS_RULE_AGENT.value, AgentNode.FINAL_RESPONSE_AGENT.value)
+    graph.add_edge(
+        AgentNode.BUSINESS_RULE_AGENT.value, AgentNode.FINAL_RESPONSE_AGENT.value
+    )
     graph.add_edge(AgentNode.ERROR_HANDLER.value, AgentNode.FINAL_RESPONSE_AGENT.value)
     graph.add_edge(AgentNode.FINAL_RESPONSE_AGENT.value, END)
 

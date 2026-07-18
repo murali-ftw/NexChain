@@ -56,7 +56,9 @@ def replace_document_chunks(doc_id: int, chunks: list[Chunk]) -> int:
         }
         for c in chunks
     ]
-    collection.upsert(ids=ids, embeddings=embeddings, documents=documents, metadatas=metadatas)
+    collection.upsert(
+        ids=ids, embeddings=embeddings, documents=documents, metadatas=metadatas
+    )
     return len(ids)
 
 

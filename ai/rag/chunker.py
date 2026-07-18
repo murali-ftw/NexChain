@@ -79,7 +79,11 @@ def _build_units(document: Document) -> list[_Unit]:
             else:
                 for sentence in _split_sentences(paragraph):
                     units.append(
-                        _Unit(text=sentence, heading=heading, tokens=_count_tokens(sentence))
+                        _Unit(
+                            text=sentence,
+                            heading=heading,
+                            tokens=_count_tokens(sentence),
+                        )
                     )
     return units
 
@@ -113,7 +117,9 @@ def chunk_document(document: Document) -> list[Chunk]:
     # whatever remains, which by construction lands close to the target
     # too.
     n_chunks = max(2, -(-total_tokens // TARGET_CHUNK_TOKENS))  # ceil
-    per_chunk_target = max(MIN_CHUNK_TOKENS, min(MAX_CHUNK_TOKENS, -(-total_tokens // n_chunks)))
+    per_chunk_target = max(
+        MIN_CHUNK_TOKENS, min(MAX_CHUNK_TOKENS, -(-total_tokens // n_chunks))
+    )
 
     chunks: list[Chunk] = []
     chunk_index = 0
@@ -151,7 +157,11 @@ def chunk_document(document: Document) -> list[Chunk]:
     for unit in units:
         # Once only the last chunk remains, stop flushing and let it
         # absorb everything left rather than risk a sub-MIN orphan tail.
-        if remaining_chunks > 1 and buffer and buffer_tokens + unit.tokens > MAX_CHUNK_TOKENS:
+        if (
+            remaining_chunks > 1
+            and buffer
+            and buffer_tokens + unit.tokens > MAX_CHUNK_TOKENS
+        ):
             carry = flush()
             remaining_chunks -= 1
             buffer = carry

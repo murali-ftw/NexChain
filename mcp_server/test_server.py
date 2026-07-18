@@ -45,7 +45,9 @@ def require_seeded_db() -> None:
         if not db.run_select("SELECT 1 AS ok FROM sales_orders LIMIT 1"):
             pytest.fail("Database is empty — run: psql -d nexchain -f db/seed_data.sql")
     except ToolUnavailable as exc:
-        pytest.fail(f"{exc}\nStart Postgres and run: psql -d nexchain -f db/seed_data.sql")
+        pytest.fail(
+            f"{exc}\nStart Postgres and run: psql -d nexchain -f db/seed_data.sql"
+        )
 
 
 @pytest.fixture(autouse=True)
@@ -86,14 +88,20 @@ async def test_every_tool_is_advertised() -> None:
 
 @pytest.mark.asyncio
 async def test_db_query_returns_structured_rows() -> None:
-    result = await call("db_query", sql="SELECT order_no, current_status FROM sales_orders WHERE order_no = 'SO-45892'")
+    result = await call(
+        "db_query",
+        sql="SELECT order_no, current_status FROM sales_orders WHERE order_no = 'SO-45892'",
+    )
     assert result["rows"] == [{"order_no": "SO-45892", "current_status": "Delayed"}]
 
 
 @pytest.mark.asyncio
 async def test_db_query_aggregates() -> None:
     """The case db_query exists for — a question get_order cannot answer."""
-    result = await call("db_query", sql="SELECT COUNT(*) AS n FROM sales_orders WHERE current_status = 'Delayed'")
+    result = await call(
+        "db_query",
+        sql="SELECT COUNT(*) AS n FROM sales_orders WHERE current_status = 'Delayed'",
+    )
     assert result["rows"][0]["n"] >= 1
 
 
@@ -125,10 +133,11 @@ async def test_unknown_order_is_a_controlled_error_not_a_crash() -> None:
 @pytest.mark.asyncio
 async def test_a_broken_query_is_a_controlled_error_not_a_crash() -> None:
     async with create_connected_server_and_client_session(mcp._mcp_server) as client:
-        result = await client.call_tool("db_query", {"sql": "SELECT * FROM no_such_table"})
+        result = await client.call_tool(
+            "db_query", {"sql": "SELECT * FROM no_such_table"}
+        )
     assert result.isError
     assert "db_query" in _error_text(result.content)
-    assert "db_query" in result.content[0].text
 
 
 # --- P2.9: tool safety at the db_query boundary -----------------------------
@@ -161,7 +170,9 @@ async def test_write_and_ddl_sql_is_rejected_before_execution(sql: str) -> None:
     assert result.isError
     assert "rejected" in _error_text(result.content)
 
-    survivor = await call("db_query", sql="SELECT order_no FROM sales_orders WHERE order_no = 'SO-45892'")
+    survivor = await call(
+        "db_query", sql="SELECT order_no FROM sales_orders WHERE order_no = 'SO-45892'"
+    )
     assert survivor["rows"] == [{"order_no": "SO-45892"}]
 
 
@@ -181,7 +192,9 @@ async def test_non_allowlisted_table_is_rejected() -> None:
 async def test_row_limit_is_capped_at_200() -> None:
     """An over-large LIMIT is rewritten down to SQL_ROW_LIMIT so a tool call can
     never dump an unbounded result set at the graph."""
-    result = await call("db_query", sql="SELECT order_no FROM sales_orders LIMIT 100000")
+    result = await call(
+        "db_query", sql="SELECT order_no FROM sales_orders LIMIT 100000"
+    )
     assert len(result["rows"]) <= 200
 
 
@@ -233,7 +246,9 @@ async def test_every_tool_declares_an_output_schema() -> None:
     text Person 3 has to parse. A bare `dict` return annotation silently gets
     no output schema from the SDK, which is exactly the trap this catches."""
     async with create_connected_server_and_client_session(mcp._mcp_server) as client:
-        tools = {t.name: t for t in (await client.list_tools()).tools if t.name in ALL_TOOLS}
+        tools = {
+            t.name: t for t in (await client.list_tools()).tools if t.name in ALL_TOOLS
+        }
     for name, tool in tools.items():
         assert tool.outputSchema, f"{name} has no output schema"
         assert tool.description, f"{name} has no description for the model to route on"
@@ -257,5 +272,7 @@ async def test_unknown_identifiers_fail_the_same_way_on_every_tool(
     graph needs one not-found path, not four."""
     async with create_connected_server_and_client_session(mcp._mcp_server) as client:
         result = await client.call_tool(tool, arguments)
-    assert result.isError, f"{tool} returned success for an identifier that does not exist"
-    assert result.content[0].text
+    assert result.isError, (
+        f"{tool} returned success for an identifier that does not exist"
+    )
+    assert _error_text(result.content)

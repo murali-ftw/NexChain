@@ -110,9 +110,16 @@ def db_query(sql: str) -> DBResult:
             sql,
             validation.reason,
         )
-        raise ToolError("db_query", f"rejected: {validation.reason}", retryable=False, status_code=400)
+        raise ToolError(
+            "db_query",
+            f"rejected: {validation.reason}",
+            retryable=False,
+            status_code=400,
+        )
     return DBResult(
-        rows=to_jsonable_python(_call("db_query", sql, db.run_select, validation.safe_sql))
+        rows=to_jsonable_python(
+            _call("db_query", sql, db.run_select, validation.safe_sql)
+        )
     )
 
 
@@ -194,5 +201,7 @@ def get_inventory(sku: str) -> InventoryRecord:
 if __name__ == "__main__":
     transport = os.environ.get("MCP_TRANSPORT") or "stdio"
     if transport not in _VALID_TRANSPORTS:
-        raise ValueError(f"MCP_TRANSPORT must be one of {_VALID_TRANSPORTS}, got {transport!r}")
+        raise ValueError(
+            f"MCP_TRANSPORT must be one of {_VALID_TRANSPORTS}, got {transport!r}"
+        )
     mcp.run(transport=transport)  # type: ignore[arg-type]

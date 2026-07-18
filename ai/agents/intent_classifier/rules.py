@@ -95,7 +95,11 @@ def classify_by_rules(query: str) -> BusinessIntent | None:
     has_sla = _contains_any(text, _SLA_WORDS)
 
     if has_status_ref and (has_reason_or_action or has_sla):
-        return BusinessIntent.DELAY_ANALYSIS if has_reason_or_action else BusinessIntent.SLA_CHECK
+        return (
+            BusinessIntent.DELAY_ANALYSIS
+            if has_reason_or_action
+            else BusinessIntent.SLA_CHECK
+        )
 
     if _contains_any(text, _SOP_WORDS):
         return BusinessIntent.SOP_LOOKUP
@@ -103,7 +107,11 @@ def classify_by_rules(query: str) -> BusinessIntent | None:
     if _TRACKING_NO_RE.search(query) or _contains_any(text, _SHIPMENT_WORDS):
         return BusinessIntent.SHIPMENT_STATUS
 
-    if _ORDER_NO_RE.search(query) or "order status" in text or "status of order" in text:
+    if (
+        _ORDER_NO_RE.search(query)
+        or "order status" in text
+        or "status of order" in text
+    ):
         return BusinessIntent.ORDER_STATUS
 
     if _contains_any(text, _INVENTORY_WORDS):

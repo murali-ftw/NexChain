@@ -21,7 +21,9 @@ T = TypeVar("T")
 _RETRYABLE_EXCEPTIONS = (LLMProviderError, LLMConfigError, ToolError)
 
 
-def call_with_retry(attempts_before: int, fn: Callable[[], T]) -> tuple[T | None, str | None, int]:
+def call_with_retry(
+    attempts_before: int, fn: Callable[[], T]
+) -> tuple[T | None, str | None, int]:
     """Run fn(), retrying once (MAX_RETRIES_PER_NODE) on a retryable
     failure. Returns (result, error_message, attempts_made) — error_message
     is None on success. ToolError.retryable governs tool failures; LLM

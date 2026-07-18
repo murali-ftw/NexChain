@@ -36,7 +36,9 @@ def base_url() -> str:
 
 
 def timeout_seconds() -> float:
-    return float(os.environ.get("MOCK_API_TIMEOUT_SECONDS", "") or DEFAULT_TIMEOUT_SECONDS)
+    return float(
+        os.environ.get("MOCK_API_TIMEOUT_SECONDS", "") or DEFAULT_TIMEOUT_SECONDS
+    )
 
 
 def _get(tool: str, path: str, timeout: float | None = None) -> dict:
@@ -48,7 +50,9 @@ def _get(tool: str, path: str, timeout: float | None = None) -> dict:
     try:
         response = httpx.get(url, timeout=timeout or timeout_seconds())
     except httpx.TimeoutException as exc:
-        raise ToolUnavailable(tool, f"timed out after {timeout or timeout_seconds()}s") from exc
+        raise ToolUnavailable(
+            tool, f"timed out after {timeout or timeout_seconds()}s"
+        ) from exc
     except httpx.RequestError as exc:
         # Connection refused, DNS failure, etc. The service is simply not there.
         raise ToolUnavailable(tool, f"cannot reach {url}: {exc}") from exc
@@ -85,7 +89,9 @@ def get_order_status(order_no: str, timeout: float | None = None) -> OrderStatus
     return OrderStatus(**_get("get_order_status", f"/api/order/{order_no}", timeout))
 
 
-def get_shipment_status(tracking_no: str, timeout: float | None = None) -> ShipmentStatus:
+def get_shipment_status(
+    tracking_no: str, timeout: float | None = None
+) -> ShipmentStatus:
     """Mock shipment-tracking API. Backs the `get_shipment_status` MCP tool."""
     logger.info("tool=get_shipment_status tracking_no=%s", tracking_no)
     return ShipmentStatus(

@@ -26,9 +26,7 @@ from ai.llm_client import LLMProviderError
 from ai_service.response_mapper import state_to_fields
 from ai_service.tools.errors import ToolUnavailable
 
-FLAGSHIP_QUERY = (
-    "Where is customer order SO-45892? Why is it delayed and what action should we take?"
-)
+FLAGSHIP_QUERY = "Where is customer order SO-45892? Why is it delayed and what action should we take?"
 
 EXPECTED_FLAGSHIP = {
     "order_status": "Delayed",
@@ -78,8 +76,10 @@ def run_flagship_case() -> bool:
             failures.append(f"{key}: expected {expected!r}, got {actual!r}")
 
     ok = not failures
-    print(f"  promised_delivery_date={fields.get('promised_delivery_date')!r} "
-          f"revised_delivery_date={fields.get('revised_delivery_date')!r}")
+    print(
+        f"  promised_delivery_date={fields.get('promised_delivery_date')!r} "
+        f"revised_delivery_date={fields.get('revised_delivery_date')!r}"
+    )
     print(f"  sources: {len(fields.get('sources') or [])} citation(s)")
     print("  PASS" if ok else f"  FAIL ({'; '.join(failures)})")
     return ok
@@ -116,7 +116,9 @@ FALLBACK_CASES = [
     {
         "label": "api_status_agent (get_shipment_status)",
         "patch_target": "ai.graph.nodes.get_shipment_status",
-        "exception": ToolUnavailable("get_shipment_status", "simulated: carrier API unavailable"),
+        "exception": ToolUnavailable(
+            "get_shipment_status", "simulated: carrier API unavailable"
+        ),
         "expect_no_recommended_actions": False,
     },
 ]
@@ -138,8 +140,13 @@ def run_fallback_case(case: dict) -> bool:
     if not fields.get("error"):
         failures.append("error: expected a message, got none")
     if not fields.get("answer_text"):
-        failures.append("answer_text: expected non-empty prose even in the degraded case")
-    if case["expect_no_recommended_actions"] and fields.get("recommended_actions") != []:
+        failures.append(
+            "answer_text: expected non-empty prose even in the degraded case"
+        )
+    if (
+        case["expect_no_recommended_actions"]
+        and fields.get("recommended_actions") != []
+    ):
         failures.append(
             f"recommended_actions: expected [] fallback, got {fields.get('recommended_actions')!r}"
         )

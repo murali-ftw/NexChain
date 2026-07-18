@@ -28,7 +28,9 @@ def require_seeded_db() -> None:
     try:
         row = fetch_one("SELECT count(*) AS n FROM sales_orders", ())
     except MockApiConfigError as exc:
-        pytest.fail(f"{exc}\nStart Postgres and run: psql -d nexchain -f db/seed_data.sql")
+        pytest.fail(
+            f"{exc}\nStart Postgres and run: psql -d nexchain -f db/seed_data.sql"
+        )
     if not row or row["n"] == 0:
         pytest.fail("Database is empty — run: psql -d nexchain -f db/seed_data.sql")
 
@@ -128,12 +130,20 @@ def test_unknown_sku_is_404() -> None:
 @pytest.mark.parametrize(
     ("path", "expected_fields"),
     [
-        ("/api/order/SO-45892", {"order_no", "status", "promised_delivery_date", "revised_delivery_date"}),
-        ("/api/shipment/status/TRK-45892-1", {"tracking_no", "shipment_status", "current_location", "delay_reason"}),
+        (
+            "/api/order/SO-45892",
+            {"order_no", "status", "promised_delivery_date", "revised_delivery_date"},
+        ),
+        (
+            "/api/shipment/status/TRK-45892-1",
+            {"tracking_no", "shipment_status", "current_location", "delay_reason"},
+        ),
         ("/api/inventory/SKU-1001", {"sku", "quantity_on_hand", "quantity_reserved"}),
     ],
 )
-def test_response_shape_matches_frozen_contract(path: str, expected_fields: set[str]) -> None:
+def test_response_shape_matches_frozen_contract(
+    path: str, expected_fields: set[str]
+) -> None:
     """The MCP tools in P2.8 pass these through unchanged — no extra or missing
     fields relative to ai/contracts.py."""
     assert set(client.get(path).json()) == expected_fields

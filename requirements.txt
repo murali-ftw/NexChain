@@ -40,3 +40,7 @@ opentelemetry-instrumentation-fastapi>=0.48b0
 # --- Testing ---
 pytest>=8.3
 pytest-asyncio>=0.24
+
+# --- Lint / format / type checking ---
+ruff>=0.15
+mypy>=2.3

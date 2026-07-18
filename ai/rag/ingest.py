@@ -17,7 +17,9 @@ def run_ingestion() -> None:
         chunks = chunker.chunk_document(document)
         vector_store.replace_document_chunks(document.doc_id, chunks)
         total_chunks += len(chunks)
-        print(f"  [{document.doc_id:>2}] {document.title:<45} -> {len(chunks)} chunk(s)")
+        print(
+            f"  [{document.doc_id:>2}] {document.title:<45} -> {len(chunks)} chunk(s)"
+        )
 
     print(
         f"\nIngestion complete: {len(documents)} documents, {total_chunks} chunks, "

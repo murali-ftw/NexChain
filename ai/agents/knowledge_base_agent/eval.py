@@ -18,7 +18,10 @@ import re
 import time
 from typing import cast
 
-from ai.agents.knowledge_base_agent.agent import KnowledgeBaseResult, retrieve_and_assemble
+from ai.agents.knowledge_base_agent.agent import (
+    KnowledgeBaseResult,
+    retrieve_and_assemble,
+)
 from ai.agents.knowledge_base_agent.agent import answer_policy_question
 from ai.agents.knowledge_base_agent.test_questions import TEST_QUESTIONS
 from ai.contracts import Source
@@ -91,7 +94,11 @@ def _source_matches(sources: list[Source], expected_keywords: list[str]) -> bool
     if not sources:
         return False
     haystacks = [f"{s.document_name} {s.snippet or ''}".lower() for s in sources]
-    return any(keyword.lower() in haystack for haystack in haystacks for keyword in expected_keywords)
+    return any(
+        keyword.lower() in haystack
+        for haystack in haystacks
+        for keyword in expected_keywords
+    )
 
 
 def run() -> None:

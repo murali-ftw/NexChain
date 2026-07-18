@@ -103,6 +103,28 @@ class CoPilotState(TypedDict):
     error: str | None
 
 
+class CoPilotStateUpdate(TypedDict, total=False):
+    """Same fields as CoPilotState, all optional — the shape every LangGraph
+    node function actually returns (a partial update the graph merges into
+    CoPilotState), as opposed to CoPilotState itself, which types the full
+    state read at node entry. Added so node return annotations can be
+    precise without weakening CoPilotState's own required-keys guarantee
+    for full-state readers (e.g. the initial state built in ai_service/main.py)."""
+
+    session_id: str
+    user_id: str
+    raw_query: str
+    intent: str
+    sub_intents: list[str]
+    kb_result: dict | None
+    sql_result: dict | None
+    api_result: dict | None
+    rule_result: dict | None
+    retry_count: dict[str, int]
+    final_response: str | None
+    error: str | None
+
+
 # ---------------------------------------------------------------------------
 # 5. MCP tool interface stubs — tech-req §4.1 (exact names, owned by Person 2)
 # ---------------------------------------------------------------------------

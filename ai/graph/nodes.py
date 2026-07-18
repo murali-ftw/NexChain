@@ -19,12 +19,12 @@ from ai.contracts import AgentNode, SLAStatus
 from ai.graph.api_boundary import get_shipment_status
 from ai.graph.entities import extract_order_no, extract_tracking_no
 from ai.graph.retry import call_with_retry
-from ai.graph.state import CoPilotState
+from ai.graph.state import CoPilotState, CoPilotStateUpdate
 from ai.llm_client import LLMConfigError, LLMProviderError, generate
 from ai_service.tools.db import get_order
 
 
-def knowledge_base_agent_node(state: CoPilotState) -> CoPilotState:
+def knowledge_base_agent_node(state: CoPilotState) -> CoPilotStateUpdate:
     """For a MULTI_TOOL_QUERY, routing.py always sequences this node after
     text_to_sql_agent/api_status_agent (required_nodes() preserves
     sub_intents order, and DELAY_ANALYSIS's sub_intents put sop_lookup
@@ -52,6 +52,7 @@ def knowledge_base_agent_node(state: CoPilotState) -> CoPilotState:
     retry_count[node] = attempts
     if error:
         return {"kb_result": {"error": error}, "retry_count": retry_count}
+    assert result is not None  # call_with_retry: error is None => result is set
     return {
         "kb_result": {
             "answer": result.answer,
@@ -62,7 +63,7 @@ def knowledge_base_agent_node(state: CoPilotState) -> CoPilotState:
     }
 
 
-def text_to_sql_agent_node(state: CoPilotState) -> CoPilotState:
+def text_to_sql_agent_node(state: CoPilotState) -> CoPilotStateUpdate:
     node = AgentNode.TEXT_TO_SQL_AGENT.value
     retry_count = dict(state.get("retry_count") or {})
     attempts_before = retry_count.get(node, 0)
@@ -99,13 +100,14 @@ def text_to_sql_agent_node(state: CoPilotState) -> CoPilotState:
             "sql_result": {"sql": sql, "error": error},
             "retry_count": retry_count,
         }
+    assert db_result is not None  # call_with_retry: error is None => result is set
     return {
         "sql_result": {"sql": sql, "rows": db_result.rows},
         "retry_count": retry_count,
     }
 
 
-def api_status_agent_node(state: CoPilotState) -> CoPilotState:
+def api_status_agent_node(state: CoPilotState) -> CoPilotStateUpdate:
     """Resolves a tracking number two ways: directly from the query text
     (TRK-...), or — when the query only gives an order number, as the
     flagship phrasing does — via a live DB lookup (db_boundary.
@@ -145,10 +147,11 @@ def api_status_agent_node(state: CoPilotState) -> CoPilotState:
     retry_count[node] = attempts
     if error:
         return {"api_result": {"error": error}, "retry_count": retry_count}
+    assert result is not None  # call_with_retry: error is None => result is set
     return {"api_result": result.model_dump(), "retry_count": retry_count}
 
 
-def business_rule_agent_node(state: CoPilotState) -> CoPilotState:
+def business_rule_agent_node(state: CoPilotState) -> CoPilotStateUpdate:
     """P3.10 — SLA breach detection, delay calculation, escalation severity,
     and corrective-action selection, delegated to the pure, unit-tested rule
     engine (ai/agents/business_rule_agent/rules.py — 10/10 exact-match
@@ -184,7 +187,9 @@ def business_rule_agent_node(state: CoPilotState) -> CoPilotState:
     if not order_no:
         return {"rule_result": {"sla_status": SLAStatus.NOT_APPLICABLE.value}}
 
-    order, error, attempts = call_with_retry(attempts_before, lambda: get_order(order_no))
+    order, error, attempts = call_with_retry(
+        attempts_before, lambda: get_order(order_no)
+    )
     retry_count[node] = attempts
     if error:
         return {"rule_result": {"error": error}, "retry_count": retry_count}
@@ -194,7 +199,10 @@ def business_rule_agent_node(state: CoPilotState) -> CoPilotState:
         # ToolNotFound draws from ToolUnavailable in ai_service/tools/errors.py)
         # — no "error" key here, so response_mapper doesn't mark this partial.
         return {
-            "rule_result": {"order_no": order_no, "sla_status": SLAStatus.NOT_APPLICABLE.value},
+            "rule_result": {
+                "order_no": order_no,
+                "sla_status": SLAStatus.NOT_APPLICABLE.value,
+            },
             "retry_count": retry_count,
         }
 
@@ -238,7 +246,7 @@ def business_rule_agent_node(state: CoPilotState) -> CoPilotState:
     }
 
 
-def final_response_agent_node(state: CoPilotState) -> CoPilotState:
+def final_response_agent_node(state: CoPilotState) -> CoPilotStateUpdate:
     """P3.11 — assembles the prose answer_text from whatever kb/sql/api/rule
     results this query gathered. The structured wire fields (order_status,
     delay_days, sla_status, sources, ...) are read directly off CoPilotState
@@ -280,7 +288,9 @@ def final_response_agent_node(state: CoPilotState) -> CoPilotState:
     sla_status = rule_result.get("sla_status")
     delay_days = rule_result.get("delay_days")
     if sla_status and sla_status != SLAStatus.NOT_APPLICABLE.value:
-        sentences.append(f"SLA status: {sla_status} ({delay_days} day(s) past the promised date).")
+        sentences.append(
+            f"SLA status: {sla_status} ({delay_days} day(s) past the promised date)."
+        )
         escalation_role = rule_result.get("escalation_role")
         if escalation_role:
             sentences.append(f"Escalated to: {escalation_role}.")
@@ -310,7 +320,10 @@ def final_response_agent_node(state: CoPilotState) -> CoPilotState:
         or kb_result.get("error")
         or sql_result.get("error")
     )
-    return {"final_response": None, "error": error or "no data available to answer this question"}
+    return {
+        "final_response": None,
+        "error": error or "no data available to answer this question",
+    }
 
 
 _DESCRIBE_ROWS_PROMPT = """You are answering a supply-chain question using ONLY the database rows below \
@@ -351,14 +364,17 @@ def _summarize_rows(rows: list[dict], limit: int = 5) -> str:
     Accurate-but-plain beats silently dropping real data."""
     if not rows:
         return "No matching records were found."
-    lines = [", ".join(f"{key}={value}" for key, value in row.items()) for row in rows[:limit]]
+    lines = [
+        ", ".join(f"{key}={value}" for key, value in row.items())
+        for row in rows[:limit]
+    ]
     summary = "; ".join(lines) + "."
     if len(rows) > limit:
         summary += f" ({len(rows) - limit} more row(s) not shown.)"
     return summary
 
 
-def error_handler_node(state: CoPilotState) -> CoPilotState:
+def error_handler_node(state: CoPilotState) -> CoPilotStateUpdate:
     """Reached only when intent classification itself fails outright (no
     routable business_intent) — per-branch tool failures degrade
     gracefully in place instead (see ai/graph/routing.py)."""
