@@ -107,12 +107,11 @@ FALLBACK_CASES = [
         "exception": LLMProviderError("simulated: LLM unavailable"),
         "expect_no_recommended_actions": False,
     },
-    {
-        "label": "text_to_sql_agent (generate_sql)",
-        "patch_target": "ai.graph.nodes.generate_sql",
-        "exception": LLMProviderError("simulated: LLM unavailable"),
-        "expect_no_recommended_actions": False,
-    },
+    # No text_to_sql_agent (generate_sql) case: routing.py's required_nodes()
+    # deliberately skips the order_status sub-intent for MULTI_TOOL_QUERY
+    # (business_rule_agent's get_order() already re-fetches it authoritatively,
+    # see routing.py's comment) — so text_to_sql_agent is never invoked for
+    # FLAGSHIP_QUERY at all, and patching generate_sql here would test nothing.
     {
         "label": "api_status_agent (get_shipment_status)",
         "patch_target": "ai.graph.nodes.get_shipment_status",

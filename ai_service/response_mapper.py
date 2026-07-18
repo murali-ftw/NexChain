@@ -81,7 +81,9 @@ def _agents_invoked(state: CoPilotState) -> list[str]:
     since that field is only ever set by that node's own return value."""
     agents = [AgentNode.INTENT_CLASSIFIER.value]
     agents.extend(
-        node.value for field, node in _BRANCH_NODE_FOR_FIELD if state.get(field) is not None
+        node.value
+        for field, node in _BRANCH_NODE_FOR_FIELD
+        if state.get(field) is not None
     )
     agents.append(AgentNode.FINAL_RESPONSE_AGENT.value)
     return agents

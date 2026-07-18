@@ -62,7 +62,12 @@ CASES: list[_Case] = [
             "Where is customer order SO-45892? Why is it delayed and "
             "what action should we take?"
         ),
-        "must_visit": {"text_to_sql_agent", "api_status_agent", "knowledge_base_agent"},
+        # text_to_sql_agent is deliberately NOT required here: routing.py's
+        # required_nodes() skips the order_status sub-intent specifically
+        # because business_rule_agent (always visited for MULTI_TOOL_QUERY)
+        # already re-fetches the order authoritatively via get_order() —
+        # the DB source is still gathered, just not through this node.
+        "must_visit": {"api_status_agent", "knowledge_base_agent"},
     },
 ]
 

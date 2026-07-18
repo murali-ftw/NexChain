@@ -54,6 +54,18 @@ def required_nodes(state: CoPilotState) -> list[str] | None:
     sub_intents = state.get("sub_intents") or [intent]
     nodes: list[str] = []
     for sub in sub_intents:
+        if sub == BusinessIntent.ORDER_STATUS.value:
+            # business_rule_agent — which every MULTI_TOOL_QUERY reaches
+            # regardless of which branches ran (see graph.py's edges) —
+            # already re-fetches the order authoritatively via get_order()
+            # (nodes.py's business_rule_agent_node docstring). Routing
+            # order_status through text_to_sql_agent here would pay for an
+            # LLM SQL-generation call + DB round trip whose rows
+            # final_response_agent_node then silently discards whenever
+            # rule_result already set current_status — so skip it, unless
+            # some other sub-intent also needs text_to_sql_agent, in which
+            # case the loop below still adds it for that reason.
+            continue
         try:
             sub_category = INTENT_TO_ROUTING[BusinessIntent(sub)]
         except ValueError:
