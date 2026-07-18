@@ -31,4 +31,6 @@ public record AiQueryResult(
         List<String> recommendedActions,
         List<SourceDto> sources,
         boolean partial,
-        String error) {}
+        String error,
+        List<String> agentsInvoked,
+        String generatedSql) {}

@@ -37,6 +37,8 @@ export const FLAGSHIP_RESPONSE: ChatResponseFixture = {
   partial: false,
   warnings: [],
   error: null,
+  agentsInvoked: [],
+  generatedSql: null,
 };
 
 /** Scenario B: inventory lookup — no order/shipment fields apply. */
@@ -56,6 +58,8 @@ export const INVENTORY_RESPONSE: ChatResponseFixture = {
   partial: false,
   warnings: [],
   error: null,
+  agentsInvoked: [],
+  generatedSql: null,
 };
 
 /** Scenario C: SOP/policy lookup — no order/shipment/impact fields apply. */
@@ -94,6 +98,8 @@ export const SLA_POLICY_RESPONSE: ChatResponseFixture = {
   partial: false,
   warnings: [],
   error: null,
+  agentsInvoked: [],
+  generatedSql: null,
 };
 
 /**
@@ -119,6 +125,8 @@ export const REPORTING_RESPONSE: ChatResponseFixture = {
   partial: false,
   warnings: [],
   error: null,
+  agentsInvoked: [],
+  generatedSql: null,
 };
 
 /**
@@ -141,6 +149,8 @@ export const DEGRADED_RESPONSE: ChatResponseFixture = {
   partial: true,
   warnings: ['Shipment API unavailable. This answer is based on database records only.'],
   error: null,
+  agentsInvoked: [],
+  generatedSql: null,
 };
 
 /** Fallback for anything that doesn't match a known scenario — mirrors backend-api's own generic mock. */
@@ -161,5 +171,7 @@ export function genericResponse(query: string): ChatResponseFixture {
     partial: false,
     warnings: [],
     error: null,
+    agentsInvoked: [],
+    generatedSql: null,
   };
 }

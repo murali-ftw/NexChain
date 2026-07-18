@@ -28,4 +28,6 @@ public record AiServiceResponse(
         boolean partial,
         String error,
         String promisedDeliveryDate,
-        String revisedDeliveryDate) {}
+        String revisedDeliveryDate,
+        List<String> agentsInvoked,
+        String generatedSql) {}

@@ -61,6 +61,8 @@ public class FakeAiQueryClient implements AiQueryClient {
                         3,
                         0.93)),
                 false,
+                null,
+                List.of(),
                 null);
     }
 
@@ -79,6 +81,8 @@ public class FakeAiQueryClient implements AiQueryClient {
                 List.of(),
                 List.of(),
                 false,
+                null,
+                List.of(),
                 null);
     }
 
@@ -112,6 +116,8 @@ public class FakeAiQueryClient implements AiQueryClient {
                                 1,
                                 0.81)),
                 false,
+                null,
+                List.of(),
                 null);
     }
 
@@ -131,6 +137,8 @@ public class FakeAiQueryClient implements AiQueryClient {
                 List.of(),
                 List.of(),
                 false,
+                null,
+                List.of(),
                 null);
     }
 
@@ -149,6 +157,8 @@ public class FakeAiQueryClient implements AiQueryClient {
                 List.of(),
                 List.of(),
                 false,
+                null,
+                List.of(),
                 null);
     }
 }

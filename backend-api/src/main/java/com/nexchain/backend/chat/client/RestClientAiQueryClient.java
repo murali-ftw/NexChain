@@ -59,7 +59,9 @@ public class RestClientAiQueryClient implements AiQueryClient {
                     body.recommendedActions() != null ? body.recommendedActions() : List.of(),
                     body.sources() != null ? body.sources() : List.of(),
                     body.partial(),
-                    body.error());
+                    body.error(),
+                    body.agentsInvoked() != null ? body.agentsInvoked() : List.of(),
+                    body.generatedSql());
         } catch (HttpStatusCodeException ex) {
             log.warn("ai_service traceId={} returned {}: {}", traceId, ex.getStatusCode(), ex.getResponseBodyAsString());
             return degraded("AI service error (%s): %s".formatted(ex.getStatusCode().value(), detailFrom(ex)));
@@ -94,6 +96,8 @@ public class RestClientAiQueryClient implements AiQueryClient {
                 List.of(),
                 List.of(),
                 true,
-                error);
+                error,
+                List.of(),
+                null);
     }
 }

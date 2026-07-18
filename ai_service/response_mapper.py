@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from ai.contracts import (
     INTENT_TO_ROUTING,
+    AgentNode,
     BusinessIntent,
     CoPilotState,
     RoutingCategory,
@@ -28,6 +29,17 @@ _FALLBACK_ANSWER = (
 )
 
 _RESULT_FIELDS = ("kb_result", "sql_result", "api_result", "rule_result")
+
+# Which state result field, if present, proves the corresponding branch node
+# actually ran (ai/graph/graph.py: intent_classifier and final_response_agent
+# are on every path; the rest run only when routing.required_nodes() picked
+# them). Order matches execution order, not declaration order in CoPilotState.
+_BRANCH_NODE_FOR_FIELD = (
+    ("sql_result", AgentNode.TEXT_TO_SQL_AGENT),
+    ("api_result", AgentNode.API_STATUS_AGENT),
+    ("kb_result", AgentNode.KNOWLEDGE_BASE_AGENT),
+    ("rule_result", AgentNode.BUSINESS_RULE_AGENT),
+)
 
 
 def _routing_category(state: CoPilotState) -> RoutingCategory:
@@ -61,6 +73,20 @@ def _sources(kb_result: dict) -> list[SourceOut]:
     return [SourceOut(**hit) for hit in kb_result.get("sources") or []]
 
 
+def _agents_invoked(state: CoPilotState) -> list[str]:
+    """Every node this run actually executed, in execution order — for the
+    audit log (audit_log.agents_invoked, backend_schema §2.14). intent_classifier
+    and final_response_agent are unconditional (see graph.py's edges); the
+    branch nodes are included exactly when their result field is present,
+    since that field is only ever set by that node's own return value."""
+    agents = [AgentNode.INTENT_CLASSIFIER.value]
+    agents.extend(
+        node.value for field, node in _BRANCH_NODE_FOR_FIELD if state.get(field) is not None
+    )
+    agents.append(AgentNode.FINAL_RESPONSE_AGENT.value)
+    return agents
+
+
 def state_to_fields(state: CoPilotState) -> dict:
     """The CoPilotResponse-shaped kwargs derived from a finished graph run.
 
@@ -73,6 +99,7 @@ def state_to_fields(state: CoPilotState) -> dict:
     kb_result = state.get("kb_result") or {}
     api_result = state.get("api_result") or {}
     rule_result = state.get("rule_result") or {}
+    sql_result = state.get("sql_result") or {}
 
     error = _first_error(state)
     sla_status = (
@@ -96,4 +123,6 @@ def state_to_fields(state: CoPilotState) -> dict:
         "error": error,
         "promised_delivery_date": rule_result.get("promised_delivery_date"),
         "revised_delivery_date": rule_result.get("revised_delivery_date"),
+        "agents_invoked": _agents_invoked(state),
+        "generated_sql": sql_result.get("sql"),
     }

@@ -280,3 +280,9 @@ class CoPilotResponse(BaseModel):
     # Person 1's provisional AiQueryResponse subclass (ai_service/schemas.py).
     promised_delivery_date: date | None = None
     revised_delivery_date: date | None = None
+    # Amended post-Day-11 audit: audit_log.agents_invoked / generated_sql
+    # (backend_schema §2.14) were always empty at record time because nothing
+    # upstream of Spring Boot's ChatResponse carried them, even though the
+    # graph always knows both. Populated by response_mapper.state_to_fields.
+    agents_invoked: list[str] = Field(default_factory=list)
+    generated_sql: str | None = None
