@@ -11,9 +11,11 @@
     <a class="sidebar__link" routerLink="/history" routerLinkActive="sidebar__link--active">
       History
     </a>
-    <a class="sidebar__link" routerLink="/audit" routerLinkActive="sidebar__link--active">
-      Audit
-    </a>
+    @if (authService.currentUser()?.role === 'ADMIN') {
+      <a class="sidebar__link" routerLink="/audit" routerLinkActive="sidebar__link--active">
+        Audit
+      </a>
+    }
   </nav>
 
   <div class="sidebar__footer">
