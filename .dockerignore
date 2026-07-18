@@ -1,0 +1,18 @@
+# Root-level: applies to ai_service/, mcp_server/, mock_apis/ builds, whose
+# context is the repo root (they need the sibling `ai` package).
+.git
+.claude
+docs
+frontend
+backend-api
+venv
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+ai/.env
+ai/chroma_db
+db/data
+*.log

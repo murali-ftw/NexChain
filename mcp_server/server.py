@@ -51,8 +51,18 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 DEFAULT_PORT = 8002  # 4200 Angular, 8080 Spring Boot, 8000 mock_apis, 8001 ai_service
+# FastMCP's own default (127.0.0.1) is correct for a locally-spawned stdio
+# client but unreachable from outside a container on streamable-http/sse —
+# Docker's port mapping forwards to the container's external interface, not
+# its loopback. MCP_HOST lets a container override it; local/stdio use is
+# unaffected either way, since host only matters for network transports.
+DEFAULT_HOST = "127.0.0.1"
 
-mcp = FastMCP("nexchain-tools", port=int(os.environ.get("MCP_PORT") or DEFAULT_PORT))
+mcp = FastMCP(
+    "nexchain-tools",
+    host=os.environ.get("MCP_HOST") or DEFAULT_HOST,
+    port=int(os.environ.get("MCP_PORT") or DEFAULT_PORT),
+)
 
 T = TypeVar("T")
 

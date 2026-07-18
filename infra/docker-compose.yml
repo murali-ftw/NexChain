@@ -1,5 +1,12 @@
 # Copy infra/.env.example to infra/.env (gitignored) and set a real
 # POSTGRES_PASSWORD before running `docker compose up` — see docs/02_technical_requirements.md §8.
+#
+# Brings up the full stack: Postgres -> mock_apis -> ai_service -> backend-api
+# -> frontend, plus mcp_server (not yet in the live request path — see
+# mcp_server/server.py's module docstring — but independently runnable and
+# testable here like every other service). LLM_PRIMARY_API_KEY is optional:
+# without it, the AI pipeline degrades gracefully (partial:true responses)
+# rather than failing to start — same behavior as running ai_service directly.
 services:
   postgres:
     image: postgres:15
@@ -21,6 +28,75 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  mock_apis:
+    build:
+      context: ..
+      dockerfile: mock_apis/Dockerfile
+    container_name: nexchain-mock-apis
+    environment:
+      MOCK_API_DATABASE_URL: postgresql://copilot_readonly:${COPILOT_READONLY_PASSWORD}@postgres:5432/nexchain
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  ai_service:
+    build:
+      context: ..
+      dockerfile: ai_service/Dockerfile
+    container_name: nexchain-ai-service
+    environment:
+      AI_SERVICE_DATABASE_URL: postgresql://copilot_readonly:${COPILOT_READONLY_PASSWORD}@postgres:5432/nexchain
+      MOCK_API_BASE_URL: http://mock_apis:8000
+      LLM_PRIMARY_PROVIDER: gemini
+      LLM_PRIMARY_MODEL: gemini-flash-latest
+      LLM_PRIMARY_API_KEY: ${LLM_PRIMARY_API_KEY:-}
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mock_apis:
+        condition: service_started
+
+  mcp_server:
+    build:
+      context: ..
+      dockerfile: mcp_server/Dockerfile
+    container_name: nexchain-mcp-server
+    environment:
+      AI_SERVICE_DATABASE_URL: postgresql://copilot_readonly:${COPILOT_READONLY_PASSWORD}@postgres:5432/nexchain
+      MOCK_API_BASE_URL: http://mock_apis:8000
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mock_apis:
+        condition: service_started
+
+  backend-api:
+    build:
+      context: ../backend-api
+    container_name: nexchain-backend-api
+    environment:
+      AI_SERVICE_BASE_URL: http://ai_service:8001
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-do-not-use-in-production-replace-via-JWT_SECRET-env-var}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - ai_service
+
+  frontend:
+    build:
+      context: ../frontend
+    container_name: nexchain-frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend-api
 
 volumes:
   postgres_data:
