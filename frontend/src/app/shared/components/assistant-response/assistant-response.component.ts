@@ -7,6 +7,7 @@ import { SlaCardComponent } from '../response-cards/sla-card/sla-card.component'
 import { RecommendationsCardComponent } from '../response-cards/recommendations-card/recommendations-card.component';
 import { SourcesCardComponent } from '../response-cards/sources-card/sources-card.component';
 import { MetadataFooterComponent } from '../response-cards/metadata-footer/metadata-footer.component';
+import { MarkdownLitePipe } from '../../pipes/markdown-lite.pipe';
 
 /** Container for the P1.9 structured response. Composes the reusable card
  * components below; each card self-hides when its own fields are absent, so
@@ -22,6 +23,7 @@ import { MetadataFooterComponent } from '../response-cards/metadata-footer/metad
     RecommendationsCardComponent,
     SourcesCardComponent,
     MetadataFooterComponent,
+    MarkdownLitePipe,
   ],
   templateUrl: './assistant-response.component.html',
   styleUrl: './assistant-response.component.scss',

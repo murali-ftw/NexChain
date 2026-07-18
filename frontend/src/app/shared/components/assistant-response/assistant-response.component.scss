@@ -36,6 +36,30 @@
   line-height: 1.4;
   color: var(--color-text);
   margin: 0;
+
+  // Only reachable when MarkdownLitePipe emits actual block structure
+  // (headings/lists/multiple paragraphs) — the common single-sentence case
+  // has no wrapping block element at all, so these rules don't apply to it.
+  p,
+  h4,
+  ol,
+  ul {
+    margin: 0 0 8px;
+    font-weight: 400;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  h4 {
+    font-weight: 700;
+  }
+
+  ol,
+  ul {
+    padding-left: 20px;
+  }
 }
 
 .response__cards {
