@@ -39,13 +39,14 @@ entirely while still reaching every required node.
 
 ## Swap-point pattern
 
-Neither `db_boundary.py` (`ai/agents/text_to_sql_agent/`) nor
-`api_boundary.py` (here) talks to a real MCP client — none exists in this
-repo yet. Both call the same tool-layer functions the MCP server itself
-calls (`ai_service/tools/db.py`, `ai_service/tools/api_client.py`), so the
-code path is identical to going over MCP. When a real `ClientSession`
-exists project-wide, only these two files change — nothing above them
-(agents, validator, prompts, graph nodes) does.
+`db_boundary.py` (`ai/agents/text_to_sql_agent/`) and `api_boundary.py`
+(here) both talk to a real MCP client as of Day 11 (`ai/CONTRACTS.md` §11,
+`ai/mcp_client.py`) — a `ClientSession` over the independently-running
+`mcp_server` service, not the direct tool-layer calls
+(`ai_service/tools/db.py`, `ai_service/tools/api_client.py`) they used while
+no MCP client existed. Only these two files (plus `mcp_client.py` itself)
+know MCP exists — nothing above them (agents, validator, prompts, graph
+nodes) changed.
 
 `retry.py` enforces `MAX_RETRIES_PER_NODE=1` uniformly: one retry on a
 retryable failure (`ToolError.retryable`, or any LLM call failure), then

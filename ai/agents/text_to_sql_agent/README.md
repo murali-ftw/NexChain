@@ -65,16 +65,12 @@ Agent. No keys are hardcoded anywhere.
 
 ## Swap point for Person 2's `db_query`
 
-`db_boundary.py: db_query()` is the only place that will talk to the live
-database. It already returns the frozen `DBResult` contract shape
-(`ai/contracts.py`). Right now it passes straight through to
-`ai.contracts.db_query`, which raises `NotImplementedError("Owned by
-Person 2 via MCP")` — that's intentional, not a bug. When Person 2's MCP
-tool is live, replace this function's body with an MCP client call;
-nothing in `agent.py`, `validator.py`, or `prompts.py` needs to change.
-Note `agent.py` does not call `db_boundary.py` at all yet — P3.5 stops at
-validated SQL, by design; wiring execution in is a later step, once a real
-database exists to execute against.
+`db_boundary.py: db_query()` is the only place that talks to the live
+database. It returns the frozen `DBResult` contract shape (`ai/contracts.py`).
+As of Day 11 (`ai/CONTRACTS.md` §11) it goes over a real MCP `ClientSession`
+(`ai/mcp_client.py`) to Person 2's `db_query` tool, instead of calling
+`ai_service/tools/db.py` directly as it did while no MCP client existed;
+nothing in `agent.py`, `validator.py`, or `prompts.py` needed to change.
 
 ## Files
 

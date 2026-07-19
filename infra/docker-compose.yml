@@ -1,10 +1,11 @@
 # Copy infra/.env.example to infra/.env (gitignored) and set a real
 # POSTGRES_PASSWORD before running `docker compose up` — see docs/02_technical_requirements.md §8.
 #
-# Brings up the full stack: Postgres -> mock_apis -> ai_service -> backend-api
-# -> frontend, plus mcp_server (not yet in the live request path — see
-# mcp_server/server.py's module docstring — but independently runnable and
-# testable here like every other service). LLM_PRIMARY_API_KEY is optional:
+# Brings up the full stack: Postgres -> mock_apis -> mcp_server -> ai_service
+# -> backend-api -> frontend. ai_service's db_boundary/api_boundary now call
+# mcp_server over real MCP (ai/mcp_client.py, ai/CONTRACTS.md §11) instead of
+# importing ai_service/tools/* directly, so mcp_server is in the live request
+# path here, not just independently testable. LLM_PRIMARY_API_KEY is optional:
 # without it, the AI pipeline degrades gracefully (partial:true responses)
 # rather than failing to start — same behavior as running ai_service directly.
 services:
@@ -50,6 +51,7 @@ services:
     environment:
       AI_SERVICE_DATABASE_URL: postgresql://copilot_readonly:${COPILOT_READONLY_PASSWORD}@postgres:5432/nexchain
       MOCK_API_BASE_URL: http://mock_apis:8000
+      MCP_SERVER_URL: http://mcp_server:8002/mcp
       LLM_PRIMARY_PROVIDER: gemini
       LLM_PRIMARY_MODEL: gemini-flash-latest
       LLM_PRIMARY_API_KEY: ${LLM_PRIMARY_API_KEY:-}
@@ -59,6 +61,8 @@ services:
       postgres:
         condition: service_healthy
       mock_apis:
+        condition: service_started
+      mcp_server:
         condition: service_started
 
   mcp_server:

@@ -1,10 +1,13 @@
 import { Component, Input } from '@angular/core';
 import { DatePipe } from '@angular/common';
 
-/** Renders the response envelope: warnings, partial-response indicator, timestamp,
- * and trace ID. `traceId`/`timestamp` are always present on the wire contract
- * (Spring Boot's application-layer envelope — see docs/api_contracts.md), so those
- * two rows always render; `warnings`/`partial` only render when applicable (P1.9). */
+/** Renders the response envelope: error, warnings, partial-response indicator,
+ * timestamp, and trace ID. `traceId`/`timestamp` are always present on the wire
+ * contract (Spring Boot's application-layer envelope — see docs/api_contracts.md),
+ * so those two rows always render; `error`/`warnings`/`partial` only render when
+ * applicable (P1.9). `error` was previously accepted on `ChatResponse` but never
+ * bound to any template, so a response with `error` set and every other field
+ * null rendered with no visible indication at all (Day 12 hardening fix). */
 @Component({
   selector: 'app-metadata-footer',
   standalone: true,
@@ -15,6 +18,7 @@ import { DatePipe } from '@angular/common';
 export class MetadataFooterComponent {
   @Input({ required: true }) traceId!: string;
   @Input({ required: true }) timestamp!: string;
+  @Input() error: string | null = null;
   @Input() warnings: string[] = [];
   @Input() partial = false;
 }

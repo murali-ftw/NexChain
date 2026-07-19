@@ -1,10 +1,14 @@
 name: CI
 
-# Runs the exact three build/test suites verified manually during the Day 11
-# platform audit: Spring Boot (mvn verify), Angular (build + ChromeHeadless
-# unit tests), and Python (ruff + mypy + pytest + the three standalone
-# completion-gate scripts). Three independent jobs — no cross-dependency,
-# same as running them locally.
+# Runs the build/test suites verified manually during the Day 11 platform
+# audit and the Day 12 release-hardening pass: Spring Boot (mvn verify),
+# Angular (build + Chrome/Firefox headless unit tests), and Python
+# (ruff + mypy + pytest + the completion-gate scripts, against a live
+# mcp_server as of Day 12 — ai/mcp_client.py needs one, see ai/CONTRACTS.md
+# §11). Three independent jobs — no cross-dependency, same as running them
+# locally. Dependency-vulnerability scanning (npm audit / pip-audit) runs
+# inline per-push; Maven and cross-ecosystem update tracking is
+# .github/dependabot.yml instead (see its comment for why).
 
 on:
   push:
@@ -40,17 +44,21 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - uses: browser-actions/setup-firefox@v1
       - name: npm ci
         working-directory: frontend
         run: npm ci
+      - name: npm audit (fail only on high/critical — see README "Known limitations" for the accepted moderate findings and why)
+        working-directory: frontend
+        run: npm audit --audit-level=high
       - name: ng build --configuration production
         working-directory: frontend
         run: npx ng build --configuration production
-      - name: ng test (ChromeHeadless)
+      - name: ng test (Chrome + Firefox headless)
         working-directory: frontend
         env:
           CHROME_BIN: /usr/bin/google-chrome-stable
-        run: npx ng test --watch=false --browsers=ChromeHeadless
+        run: npx ng test --watch=false --browsers=ChromeHeadless,FirefoxHeadless
 
   python:
     name: Python (ruff + mypy + pytest + gates)
@@ -76,6 +84,11 @@ jobs:
       MOCK_API_DATABASE_URL: postgresql://copilot_readonly:ci_readonly_pw@localhost:5432/nexchain
       AI_SERVICE_DATABASE_URL: postgresql://copilot_readonly:ci_readonly_pw@localhost:5432/nexchain
       MOCK_API_BASE_URL: http://localhost:8000
+      # Day 12: db_boundary.py/api_boundary.py now call mcp_server over a real
+      # MCP ClientSession (ai/mcp_client.py, ai/CONTRACTS.md §11) instead of
+      # importing ai_service/tools/* directly — mcp_server must be a live,
+      # reachable process for pytest and the completion gates below to pass.
+      MCP_SERVER_URL: http://localhost:8002/mcp
       # Configure this as a repo/environment secret to exercise the real,
       # non-degraded LLM path in CI. Without it, ai_service/test_ai_service.py's
       # one live-pipeline test fails the same way it does locally with no key
@@ -107,6 +120,14 @@ jobs:
         run: |
           nohup uvicorn mock_apis.main:app --host 0.0.0.0 --port 8000 > mock_apis.log 2>&1 &
           timeout 30 bash -c 'until curl -sf http://localhost:8000/health; do sleep 1; done'
+      - name: Start mcp_server
+        env:
+          MCP_TRANSPORT: streamable-http
+        run: |
+          nohup python -m mcp_server.server > mcp_server.log 2>&1 &
+          timeout 30 bash -c 'until curl -s -o /dev/null http://localhost:8002/mcp; do sleep 1; done'
+      - name: pip-audit (report only — see README "Known limitations" for the one accepted finding and why)
+        run: pip-audit -r requirements.txt || true
       - name: ruff check
         run: ruff check ai ai_service mcp_server mock_apis
       - name: ruff format --check
