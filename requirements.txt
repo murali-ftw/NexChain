@@ -8,7 +8,7 @@ uvicorn[standard]>=0.32
 pydantic>=2.9
 
 # --- Agent orchestration ---
-langgraph>=0.2
+langgraph>=1.2.9
 langchain>=0.3
 langchain-core>=0.3
 
