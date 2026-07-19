@@ -20,7 +20,7 @@ chromadb>=0.5
 sentence-transformers>=3.2
 
 # --- Relational database access ---
-sqlalchemy>=2.0
+sqlalchemy>=2.0.51
 psycopg[binary]>=3.2
 
 # --- Text-to-SQL validation ---
