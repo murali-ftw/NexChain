@@ -88,7 +88,9 @@ def get_shipment_status(tracking_number: str) -> ShipmentStatus:
         (tracking_number,),
     )
     if row is None:
-        raise HTTPException(status_code=404, detail=f"Tracking number {tracking_number} not found")
+        raise HTTPException(
+            status_code=404, detail=f"Tracking number {tracking_number} not found"
+        )
     return ShipmentStatus(
         tracking_no=row["tracking_no"],
         shipment_status=row["shipment_status"],

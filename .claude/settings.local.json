@@ -62,7 +62,12 @@
       "Bash(rm -rf /Users/muralik/Documents/Programs/NexChain/frontend/dist)",
       "Bash(docker compose *)",
       "Bash(git check-ignore *)",
-      "Bash(echo \"--- exit code above: $? \\(0 = ignored, 1 = not ignored/tracked -> correct for example file\\) ---\")"
+      "Bash(echo \"--- exit code above: $? \\(0 = ignored, 1 = not ignored/tracked -> correct for example file\\) ---\")",
+      "Read(//Users/muralik/.sdkman/candidates/**)",
+      "Read(//Users/muralik/**)",
+      "Bash(/usr/libexec/java_home -V)",
+      "Read(//opt/homebrew/opt/**)",
+      "Read(//usr/local/bin/**)"
     ]
   }
 }

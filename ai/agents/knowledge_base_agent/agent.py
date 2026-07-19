@@ -36,7 +36,9 @@ class AssembledContext:
     used_hits: list[KBHit] = field(default_factory=list)
 
 
-def assemble_context(hits: list[KBHit], max_tokens: int = MAX_CONTEXT_TOKENS) -> AssembledContext:
+def assemble_context(
+    hits: list[KBHit], max_tokens: int = MAX_CONTEXT_TOKENS
+) -> AssembledContext:
     """Merge same-document chunks, drop exact duplicates, and cap the
     result to a token budget by keeping the highest-scoring documents
     first (truncating the last one included if it would overflow)."""
@@ -103,7 +105,9 @@ def retrieve_and_assemble(
     return hits, assembled
 
 
-def answer_policy_question(question: str, top_k: int = DEFAULT_TOP_K) -> KnowledgeBaseResult:
+def answer_policy_question(
+    question: str, top_k: int = DEFAULT_TOP_K
+) -> KnowledgeBaseResult:
     """Answer a natural-language policy question, grounded only in
     retrieved knowledge-base context, with sources preserved.
 
@@ -113,7 +117,9 @@ def answer_policy_question(question: str, top_k: int = DEFAULT_TOP_K) -> Knowled
     """
     hits, assembled = retrieve_and_assemble(question, top_k=top_k)
     if not hits:
-        return KnowledgeBaseResult(answer=NO_EVIDENCE_ANSWER, sources=[], abstained=True)
+        return KnowledgeBaseResult(
+            answer=NO_EVIDENCE_ANSWER, sources=[], abstained=True
+        )
 
     prompt = build_prompt(question, assembled.text)
     answer_text = generate(prompt)
@@ -126,4 +132,6 @@ def answer_policy_question(question: str, top_k: int = DEFAULT_TOP_K) -> Knowled
         )
         for hit in assembled.used_hits
     ]
-    return KnowledgeBaseResult(answer=answer_text.strip(), sources=sources, abstained=False)
+    return KnowledgeBaseResult(
+        answer=answer_text.strip(), sources=sources, abstained=False
+    )

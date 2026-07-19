@@ -13,14 +13,18 @@ deterministic outcomes" — any mismatch on any field is a FAIL.
 
 from __future__ import annotations
 
-from ai.agents.business_rule_agent.rules import evaluate
+from typing import cast
+
+from ai.agents.business_rule_agent.rules import RuleEngineInput, evaluate
 from ai.agents.business_rule_agent.test_scenarios import SCENARIOS
 
 
 def run() -> tuple[int, int]:
     passed = 0
     for case in SCENARIOS:
-        result = evaluate(case["input"])
+        # SCENARIOS is dict[str, object] because each entry also mixes in a
+        # plain str label — the cast narrows "input" back to its actual type.
+        result = evaluate(cast(RuleEngineInput, case["input"]))
         expected = case["expected"]
         ok = result == expected
         print(f"\n[{case['label']}]")
@@ -38,7 +42,9 @@ def run() -> tuple[int, int]:
                 exp_val = getattr(expected, field_name)
                 act_val = getattr(result, field_name)
                 if exp_val != act_val:
-                    print(f"  MISMATCH {field_name}: expected={exp_val!r} actual={act_val!r}")
+                    print(
+                        f"  MISMATCH {field_name}: expected={exp_val!r} actual={act_val!r}"
+                    )
         print("  PASS" if ok else "  FAIL")
         if ok:
             passed += 1

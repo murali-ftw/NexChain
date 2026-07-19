@@ -57,6 +57,8 @@ public class ChatService {
                 result.sources(),
                 result.partial(),
                 warnings,
-                result.error());
+                result.error(),
+                result.agentsInvoked(),
+                result.generatedSql());
     }
 }

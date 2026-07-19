@@ -11,6 +11,7 @@ Where this file and those docs disagree, the docs win — fix this file.
 
 from __future__ import annotations
 
+from datetime import date
 from enum import Enum
 from typing import TypedDict
 
@@ -93,6 +94,28 @@ class CoPilotState(TypedDict):
     raw_query: str
     intent: str  # primary intent, e.g. "order_status"
     sub_intents: list[str]  # multiple agents may be required
+    kb_result: dict | None
+    sql_result: dict | None
+    api_result: dict | None
+    rule_result: dict | None
+    retry_count: dict[str, int]
+    final_response: str | None
+    error: str | None
+
+
+class CoPilotStateUpdate(TypedDict, total=False):
+    """Same fields as CoPilotState, all optional — the shape every LangGraph
+    node function actually returns (a partial update the graph merges into
+    CoPilotState), as opposed to CoPilotState itself, which types the full
+    state read at node entry. Added so node return annotations can be
+    precise without weakening CoPilotState's own required-keys guarantee
+    for full-state readers (e.g. the initial state built in ai_service/main.py)."""
+
+    session_id: str
+    user_id: str
+    raw_query: str
+    intent: str
+    sub_intents: list[str]
     kb_result: dict | None
     sql_result: dict | None
     api_result: dict | None
@@ -253,3 +276,13 @@ class CoPilotResponse(BaseModel):
     sources: list[Source] = Field(default_factory=list)
     partial: bool = False  # set when a data source was unavailable after 1 retry (§7)
     error: str | None = None
+    # Amended Day 11 (Person 3 decision, ai/CONTRACTS.md §8 changelog): folded in from
+    # Person 1's provisional AiQueryResponse subclass (ai_service/schemas.py).
+    promised_delivery_date: date | None = None
+    revised_delivery_date: date | None = None
+    # Amended post-Day-11 audit: audit_log.agents_invoked / generated_sql
+    # (backend_schema §2.14) were always empty at record time because nothing
+    # upstream of Spring Boot's ChatResponse carried them, even though the
+    # graph always knows both. Populated by response_mapper.state_to_fields.
+    agents_invoked: list[str] = Field(default_factory=list)
+    generated_sql: str | None = None

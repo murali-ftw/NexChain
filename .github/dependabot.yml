@@ -1,0 +1,22 @@
+version: 2
+updates:
+  # Maven has no inline CI scan (OWASP dependency-check needs an NVD API key
+  # and a slow first-run DB download — too brittle for per-push CI without
+  # one); Dependabot's GitHub-Advisory-Database-backed alerts cover it
+  # instead, alongside npm and pip which are also scanned inline in ci.yml.
+  - package-ecosystem: maven
+    directory: /backend-api
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

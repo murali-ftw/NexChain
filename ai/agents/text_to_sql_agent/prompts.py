@@ -23,7 +23,9 @@ def _hint_line(intent_hint: str | None) -> str:
     return f"\nBusiness intent hint: {intent_hint}\n" if intent_hint else ""
 
 
-def build_prompt(question: str, schema_context: str, intent_hint: str | None = None) -> str:
+def build_prompt(
+    question: str, schema_context: str, intent_hint: str | None = None
+) -> str:
     return (
         f"{_SYSTEM_INSTRUCTIONS}\n\n"
         f"--- SCHEMA ---\n{schema_context}\n--- END SCHEMA ---\n"

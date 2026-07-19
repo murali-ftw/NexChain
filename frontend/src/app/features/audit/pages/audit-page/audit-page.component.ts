@@ -5,9 +5,11 @@ import { AuditApiService } from '../../services/audit-api.service';
 import { AuditEntry } from '../../models/audit.model';
 
 /** Day 8 (P1.8): fetches real, persisted audit records from Spring Boot's GET /api/audit
- * — see docs/api_contracts.md. Global admin-facing log (RBAC deferred): every
- * authenticated caller sees every user's entries, not just their own. Adds search,
- * user/date/intent filters, a detail drawer (GET /api/audit/{id}), and refresh. */
+ * — see docs/api_contracts.md. Global admin-facing log: every entry is visible to any
+ * caller who reaches this page, not scoped per-user — access itself is restricted to
+ * ADMIN, both server-side (SecurityConfig's hasRole("ADMIN")) and, since Day 12,
+ * client-side (adminGuard on the /audit route). Adds search, user/date/intent filters,
+ * a detail drawer (GET /api/audit/{id}), and refresh. */
 @Component({
   selector: 'app-audit-page',
   standalone: true,

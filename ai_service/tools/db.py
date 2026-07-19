@@ -60,10 +60,12 @@ def dsn() -> str:
 
 
 def timeout_seconds() -> float:
-    return float(os.environ.get("AI_SERVICE_DB_TIMEOUT_SECONDS", "") or DEFAULT_TIMEOUT_SECONDS)
+    return float(
+        os.environ.get("AI_SERVICE_DB_TIMEOUT_SECONDS", "") or DEFAULT_TIMEOUT_SECONDS
+    )
 
 
-def run_select(sql: str, params: tuple = ()) -> list[dict]:
+def run_select(sql: str, params: tuple | None = None) -> list[dict]:
     """Execute a read query and return its rows as dicts.
 
     `connect_timeout` only bounds establishing the connection; `statement_timeout`
@@ -73,17 +75,27 @@ def run_select(sql: str, params: tuple = ()) -> list[dict]:
     psycopg.errors.QueryCanceled, a psycopg.OperationalError subclass already
     handled below as a retryable ToolUnavailable.
 
+    `params` must stay `None`, not `()`, when the caller has no parameters:
+    psycopg3 only skips its own placeholder-syntax parsing (which otherwise
+    rejects any literal `%` not immediately followed by `s`/`b`/`t` — e.g. a
+    LIKE '%...%' wildcard) when `params` is exactly `None`. text_to_sql_agent's
+    LLM-generated SQL is passed here with no params and routinely contains
+    literal `%` wildcards, so this default previously broke every such query.
+
     # ponytail: a connection per call, same as mock_apis/db.py. A pool is worth
     # it once the graph fans out several tool calls per question; it isn't yet.
     """
     logger.info("tool=%s sql=%s", TOOL, sql)
     try:
-        with psycopg.connect(
-            dsn(),
-            row_factory=dict_row,
-            connect_timeout=int(timeout_seconds()),
-            options=f"-c statement_timeout={int(timeout_seconds() * 1000)}",
-        ) as conn, conn.cursor() as cur:
+        with (
+            psycopg.connect(
+                dsn(),
+                row_factory=dict_row,
+                connect_timeout=int(timeout_seconds()),
+                options=f"-c statement_timeout={int(timeout_seconds() * 1000)}",
+            ) as conn,
+            conn.cursor() as cur,
+        ):
             cur.execute(sql, params)
             return cur.fetchall()
     except psycopg.OperationalError as exc:

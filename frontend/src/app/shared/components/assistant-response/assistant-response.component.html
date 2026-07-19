@@ -1,7 +1,7 @@
 <article class="response" role="article" aria-label="Assistant response">
   <header class="response__header">
     <span class="response__avatar" aria-hidden="true">AI</span>
-    <h3 class="response__headline">{{ response.answerText }}</h3>
+    <div class="response__headline" [innerHTML]="response.answerText | markdownLite"></div>
   </header>
 
   @if (hasCardContent()) {
@@ -24,6 +24,7 @@
     <app-metadata-footer
       [traceId]="response.traceId"
       [timestamp]="response.timestamp"
+      [error]="response.error"
       [warnings]="response.warnings"
       [partial]="response.partial"
     />

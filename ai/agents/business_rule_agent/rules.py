@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
+from typing import cast
 
 from ai.contracts import SLAStatus
 
@@ -25,7 +26,10 @@ from ai.contracts import SLAStatus
 TIER_RULES: dict[str, dict[str, object]] = {
     "STANDARD": {"max_delay_days": 3, "escalation_role": "Logistics Coordinator"},
     "GOLD": {"max_delay_days": 5, "escalation_role": "Logistics Manager"},
-    "PLATINUM": {"max_delay_days": 7, "escalation_role": "Regional Operations Director"},
+    "PLATINUM": {
+        "max_delay_days": 7,
+        "escalation_role": "Regional Operations Director",
+    },
 }
 
 # 01_sla_policy.md "Scope and Applicability": pre-dispatch / never-dispatched
@@ -79,7 +83,10 @@ def sla_status(
 
 
 def severity(
-    status: SLAStatus, delay_days: int | None, max_delay_days: int | None, tier: str | None
+    status: SLAStatus,
+    delay_days: int | None,
+    max_delay_days: int | None,
+    tier: str | None,
 ) -> str:
     """05_escalation_matrix.md "Severity Levels": Low/Medium/High/Critical.
     Critical requires Breached + PLATINUM (single-order case only — the
@@ -108,7 +115,7 @@ def escalation_role(status: SLAStatus, sev: str, tier: str | None) -> str | None
         return "Logistics Coordinator"
     if sev in ("High", "Critical"):
         rule = TIER_RULES.get(tier or "")
-        return rule["escalation_role"] if rule else None
+        return cast("str | None", rule["escalation_role"]) if rule else None
     return None
 
 
@@ -157,16 +164,26 @@ def corrective_actions(
 
 
 def evaluate(inp: RuleEngineInput) -> RuleEngineOutput:
-    if inp.current_status in NON_DISPATCHED_STATUSES or inp.promised_delivery_date is None:
+    if (
+        inp.current_status in NON_DISPATCHED_STATUSES
+        or inp.promised_delivery_date is None
+    ):
         delay_days = None
     else:
         delay_days = compute_delay_days(inp.promised_delivery_date, inp.as_of_date)
 
-    max_dd = TIER_RULES.get(inp.sla_tier or "", {}).get("max_delay_days")
+    # TIER_RULES values are dict[str, object] because each entry mixes an int
+    # (max_delay_days) and a str (escalation_role) — the cast narrows what's a
+    # hardcoded, always-int literal back for callers that need int | None.
+    max_dd = cast(
+        "int | None", TIER_RULES.get(inp.sla_tier or "", {}).get("max_delay_days")
+    )
     status = sla_status(delay_days, max_dd, inp.current_status)
     sev = severity(status, delay_days, max_dd, inp.sla_tier)
     role = escalation_role(status, sev, inp.sla_tier)
-    actions = corrective_actions(status, sev, inp.shipment_status, inp.delay_reason, role)
+    actions = corrective_actions(
+        status, sev, inp.shipment_status, inp.delay_reason, role
+    )
 
     return RuleEngineOutput(
         sla_status=status,

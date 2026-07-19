@@ -1,3 +1,9 @@
+@if (error) {
+  <div class="error" role="alert">
+    <p class="error__item">⚠ {{ error }}</p>
+  </div>
+}
+
 @if (warnings.length > 0) {
   <div class="warnings" role="status">
     @for (warning of warnings; track warning) {

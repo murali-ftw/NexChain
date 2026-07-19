@@ -13,15 +13,13 @@ final. See ai_service/README.md for the reasoning in full.
    them to camelCase, so the JSON drops straight into Spring's records with no
    @JsonProperty annotations.
 
-2. **The two delivery-date fields are added here, not in ai/contracts.py.**
-   Spring Boot's ChatResponse already carries promisedDeliveryDate /
-   revisedDeliveryDate, flagged as a provisional extension, because the UI's
-   Impact table (docs/04_ui_ux_design.md §3.2) and the flagship sample
-   (docs/problem_statement.md §7) both need them — but CoPilotResponse doesn't
-   have them. Person 3 owns ai/contracts.py and "shared contracts may not be
-   changed silently" (docs/team_plan.md), so this subclasses CoPilotResponse
-   instead of editing it. If Person 3 folds the fields into the frozen contract,
-   delete the two declarations below and the subclass collapses to a no-op.
+2. **The two delivery-date fields — RESOLVED, folded into CoPilotResponse.**
+   Originally added here as a provisional subclass extension (Spring Boot's
+   ChatResponse needed promisedDeliveryDate/revisedDeliveryDate before
+   CoPilotResponse had them). Person 3 has now folded both fields into the
+   frozen contract directly (ai/contracts.py, ai/CONTRACTS.md §8 changelog) —
+   pending Person 1 + Person 2 confirmation. The redeclarations that used to
+   live on AiQueryResponse below are removed; the fields are inherited as-is.
 
 P1.10 contract-validation fix: `Source` (ai/contracts.py) is a plain
 BaseModel with no alias generator, so a bare `list[Source]` field would put
@@ -60,9 +58,12 @@ class SourceOut(_CamelModel):
 class AiQueryRequest(_CamelModel):
     """Body of POST /ai/query, sent by Spring Boot (docs/api_contracts.md)."""
 
-    query: str = Field(min_length=1, description="The user's natural-language question.")
+    query: str = Field(
+        min_length=1, description="The user's natural-language question."
+    )
     session_id: str | None = Field(
-        default=None, description="Conversation session; Spring Boot mints one if absent."
+        default=None,
+        description="Conversation session; Spring Boot mints one if absent.",
     )
     user_id: str | None = Field(
         default=None,
@@ -92,10 +93,6 @@ class AiQueryResponse(CoPilotResponse, _CamelModel):
 
     trace_id: str | None = None
     session_id: str | None = None
-
-    # PROVISIONAL — pending Person 3 sign-off; see module docstring.
-    promised_delivery_date: str | None = None
-    revised_delivery_date: str | None = None
 
     # Overrides CoPilotResponse's list[Source] with the camelCase wire shape — see
     # the "P1.10 contract-validation fix" note in the module docstring. mypy flags

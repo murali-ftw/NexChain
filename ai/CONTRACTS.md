@@ -17,11 +17,11 @@ this document did not exist until now. No values were changed to write it.
 
 The four categories the LangGraph supervisor branches on (`RoutingCategory`):
 
-| Value |
-|---|
-| `KNOWLEDGE_QUERY` |
-| `DATABASE_QUERY` |
-| `API_QUERY` |
+| Value                |
+| -------------------- |
+| `KNOWLEDGE_QUERY`  |
+| `DATABASE_QUERY`   |
+| `API_QUERY`        |
 | `MULTI_TOOL_QUERY` |
 
 ---
@@ -31,15 +31,15 @@ The four categories the LangGraph supervisor branches on (`RoutingCategory`):
 `BusinessIntent` — finer-grained intent used in `CoPilotState.intent` and
 `audit_log.detected_intent`:
 
-| Intent | Routing Category | Why |
-|---|---|---|
-| `order_status` | `DATABASE_QUERY` | Answerable from `sales_orders`/`order_items` alone. |
-| `shipment_status` | `API_QUERY` | Live carrier/tracking data, not a DB read. |
-| `inventory` | `DATABASE_QUERY` | Answerable from `inventory` alone. |
-| `sop_lookup` | `KNOWLEDGE_QUERY` | Policy/procedure text lives only in the KB. |
-| `report` | `DATABASE_QUERY` | Aggregate/tabular query against allow-listed tables. |
-| `sla_check` | `MULTI_TOOL_QUERY` | `business_rule_agent` needs DB (promised date, tier) + API (current shipment state) results together. |
-| `delay_analysis` | `MULTI_TOOL_QUERY` | Same as `sla_check`, plus KB guidance (the relevant SOP) for a "why and what do we do" answer (problem_statement §6). |
+| Intent              | Routing Category     | Why                                                                                                                     |
+| ------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `order_status`    | `DATABASE_QUERY`   | Answerable from`sales_orders`/`order_items` alone.                                                                  |
+| `shipment_status` | `API_QUERY`        | Live carrier/tracking data, not a DB read.                                                                              |
+| `inventory`       | `DATABASE_QUERY`   | Answerable from`inventory` alone.                                                                                     |
+| `sop_lookup`      | `KNOWLEDGE_QUERY`  | Policy/procedure text lives only in the KB.                                                                             |
+| `report`          | `DATABASE_QUERY`   | Aggregate/tabular query against allow-listed tables.                                                                    |
+| `sla_check`       | `MULTI_TOOL_QUERY` | `business_rule_agent` needs DB (promised date, tier) + API (current shipment state) results together.                 |
+| `delay_analysis`  | `MULTI_TOOL_QUERY` | Same as`sla_check`, plus KB guidance (the relevant SOP) for a "why and what do we do" answer (problem_statement §6). |
 
 `INTENT_TO_ROUTING` (exact mapping, `contracts.py` §2):
 
@@ -83,20 +83,20 @@ do not rename):
 Internal graph state only — never returned directly over the wire (see §8 for
 the wire schema).
 
-| Field | Type | Notes |
-|---|---|---|
-| `session_id` | `str` | |
-| `user_id` | `str` | |
-| `raw_query` | `str` | |
-| `intent` | `str` | Primary intent, e.g. `"order_status"`. |
-| `sub_intents` | `list[str]` | Multiple agents may be required. |
-| `kb_result` | `dict \| None` | |
-| `sql_result` | `dict \| None` | |
-| `api_result` | `dict \| None` | |
-| `rule_result` | `dict \| None` | |
-| `retry_count` | `dict[str, int]` | Keyed per node, see §7. |
-| `final_response` | `str \| None` | See open question, §10. |
-| `error` | `str \| None` | |
+| Field              | Type               | Notes                                   |
+| ------------------ | ------------------ | --------------------------------------- |
+| `session_id`     | `str`            |                                         |
+| `user_id`        | `str`            |                                         |
+| `raw_query`      | `str`            |                                         |
+| `intent`         | `str`            | Primary intent, e.g.`"order_status"`. |
+| `sub_intents`    | `list[str]`      | Multiple agents may be required.        |
+| `kb_result`      | `dict \| None`    |                                         |
+| `sql_result`     | `dict \| None`    |                                         |
+| `api_result`     | `dict \| None`    |                                         |
+| `rule_result`    | `dict \| None`    |                                         |
+| `retry_count`    | `dict[str, int]` | Keyed per node, see §7.                |
+| `final_response` | `str \| None`     | See open question, §10.                |
+| `error`          | `str \| None`     |                                         |
 
 ---
 
@@ -106,21 +106,21 @@ Exact names and typed I/O, owned by Person 2 via MCP (`contracts.py` §5).
 Every stub currently raises `NotImplementedError("Owned by Person 2 via MCP")`
 — that is intentional, not a bug to fix.
 
-| Tool | Signature | Returns |
-|---|---|---|
-| `kb_search` | `(query: str, top_k: int)` | `list[KBHit]` |
-| `db_query` | `(sql: str)` | `DBResult` — `sql` must already be validated (§6) |
-| `get_order_status` | `(order_no: str)` | `OrderStatus` |
-| `get_shipment_status` | `(tracking_no: str)` | `ShipmentStatus` |
-| `get_inventory` | `(sku: str)` | `InventoryRecord` |
+| Tool                    | Signature                    | Returns                                                 |
+| ----------------------- | ---------------------------- | ------------------------------------------------------- |
+| `kb_search`           | `(query: str, top_k: int)` | `list[KBHit]`                                         |
+| `db_query`            | `(sql: str)`               | `DBResult` — `sql` must already be validated (§6) |
+| `get_order_status`    | `(order_no: str)`          | `OrderStatus`                                         |
+| `get_shipment_status` | `(tracking_no: str)`       | `ShipmentStatus`                                      |
+| `get_inventory`       | `(sku: str)`               | `InventoryRecord`                                     |
 
 **`KBHit`** (one `kb_search` result item):
 
-| Field | Type |
-|---|---|
-| `content` | `str` |
-| `source_doc` | `str` |
-| `score` | `float` |
+| Field          | Type      |
+| -------------- | --------- |
+| `content`    | `str`   |
+| `source_doc` | `str`   |
+| `score`      | `float` |
 
 **`DBResult`**: `rows: list[dict]`
 
@@ -168,21 +168,21 @@ the two are not to be conflated.
 
 **`Source`** (a citation derived from a `KBHit`):
 
-| Field | Type |
-|---|---|
-| `document_name` | `str` |
-| `snippet` | `str \| None` |
-| `doc_id` | `int \| None` |
-| `score` | `float \| None` |
+| Field             | Type             |
+| ----------------- | ---------------- |
+| `document_name` | `str`          |
+| `snippet`       | `str \| None`   |
+| `doc_id`        | `int \| None`   |
+| `score`         | `float \| None` |
 
 **`SLAStatus`** (matches `docs/06_backend_schema.md` §6 `sla_result` wording):
 
-| Value |
-|---|
-| `On Time` |
-| `At Risk` |
+| Value        |
+| ------------ |
+| `On Time`  |
+| `At Risk`  |
 | `Breached` |
-| `N/A` |
+| `N/A`      |
 
 SLA breach logic (`docs/06_backend_schema.md` §6, computed by the Business
 Rule Agent):
@@ -196,29 +196,38 @@ ELSE:                                  On Time
 
 Tiers and `max_delay_days` (`ai/knowledge_base/01_sla_policy.md`):
 
-| Tier | `max_delay_days` | Escalation Role |
-|---|---|---|
-| STANDARD | 3 days | Logistics Coordinator |
-| GOLD | 5 days | Logistics Manager |
-| PLATINUM | 7 days | Regional Operations Director |
+| Tier     | `max_delay_days` | Escalation Role              |
+| -------- | ------------------ | ---------------------------- |
+| STANDARD | 3 days             | Logistics Coordinator        |
+| GOLD     | 5 days             | Logistics Manager            |
+| PLATINUM | 7 days             | Regional Operations Director |
 
 **`CoPilotResponse`** — the wire/structured response: FastAPI → Spring Boot →
 Angular (P1.9):
 
-| Field | Type | Notes |
-|---|---|---|
-| `answer_text` | `str` | |
-| `intent` | `RoutingCategory` | |
-| `order_status` | `str \| None` | |
-| `shipment_status` | `str \| None` | |
-| `current_location` | `str \| None` | |
-| `delay_reason` | `str \| None` | |
-| `delay_days` | `int \| None` | |
-| `sla_status` | `SLAStatus` | |
-| `recommended_actions` | `list[str]` | Default `[]`. |
-| `sources` | `list[Source]` | Default `[]`. |
-| `partial` | `bool` | Set when a data source was unavailable after 1 retry (§7). Default `False`. |
-| `error` | `str \| None` | |
+| Field                      | Type                | Notes                                                                         |
+| -------------------------- | ------------------- | ----------------------------------------------------------------------------- |
+| `answer_text`            | `str`             |                                                                               |
+| `intent`                 | `RoutingCategory` |                                                                               |
+| `order_status`           | `str \| None`      |                                                                               |
+| `shipment_status`        | `str \| None`      |                                                                               |
+| `current_location`       | `str \| None`      |                                                                               |
+| `delay_reason`           | `str \| None`      |                                                                               |
+| `delay_days`             | `int \| None`      |                                                                               |
+| `sla_status`             | `SLAStatus`       |                                                                               |
+| `recommended_actions`    | `list[str]`       | Default`[]`.                                                                |
+| `sources`                | `list[Source]`    | Default`[]`.                                                                |
+| `partial`                | `bool`            | Set when a data source was unavailable after 1 retry (§7). Default`False`. |
+| `error`                  | `str \| None`      |                                                                               |
+| `promised_delivery_date` | `date \| None`     | Added 2026-07-17, see changelog below.                                        |
+| `revised_delivery_date`  | `date \| None`     | Added 2026-07-17, see changelog below.                                        |
+
+**Changelog:**
+
+- **2026-07-17** — Amended `CoPilotResponse` to add `promised_delivery_date` /
+  `revised_delivery_date` (Person 3 decision, replacing Person 1's provisional
+  `AiQueryResponse` subclass in `ai_service/schemas.py`) — pending Person 1 +
+  Person 2 confirmation.
 
 ---
 
@@ -267,7 +276,33 @@ interpretation.
 
 ## Approval
 
-- [ ] Person 1 — reviewed, no objection to the wire schema (§8) or the open
-      question (§10)
-- [ ] Person 2 — reviewed, no objection to the MCP tool signatures (§5) or
-      the SQL allow-list (§6)
+- [X] Person 1 — reviewed, no objection to the wire schema (§8) or the open
+  question (§10)
+- [X] Person 2 — reviewed, no objection to the MCP tool signatures (§5) or
+  the SQL allow-list (§6)
+
+---
+
+## 11. MCP Client Decision (Day 11)
+
+Until today, `db_boundary.py` / `api_boundary.py` called the tool-layer
+functions directly instead of going over MCP (see their module docstrings) —
+a deliberate placeholder pending a whole-team scope call: accept the
+direct-call shortcut permanently, or build a real MCP client.
+
+**Decision: build a real MCP client.** `mcp_server/server.py`'s tool surface
+is frozen as of today at the 5 live tools (`db_query`, `get_order`,
+`get_order_status`, `get_shipment_status`, `get_inventory`); `kb_search`
+stays out of scope until routing KB retrieval through MCP earns its keep
+(server.py's own trailing note). Both boundary modules now hold a real
+`ClientSession` (streamable-http, `MCP_SERVER_URL`) instead of importing
+`ai_service/tools/*` directly — see their updated docstrings and
+`ai/mcp_client.py`.
+
+**Day 12 follow-up:** `ai/graph/nodes.py` was still importing
+`ai_service.tools.db.get_order` directly, bypassing this boundary for the
+one tool Day 11 missed. Fixed — `db_boundary.get_order` now routes through
+MCP too, and converts the date fields (`order_date`,
+`promised_delivery_date`, `revised_delivery_date`) back from the ISO
+strings the MCP JSON wire format carries them as into `datetime.date`,
+since `business_rule_agent_node` does date arithmetic on them.

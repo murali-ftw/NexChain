@@ -48,6 +48,8 @@ describe('ChatApiService', () => {
       partial: false,
       warnings: [],
       error: null,
+      agentsInvoked: ['intent_classifier', 'text_to_sql_agent', 'api_status_agent', 'knowledge_base_agent'],
+      generatedSql: null,
     };
     req.flush(mockResponse);
 

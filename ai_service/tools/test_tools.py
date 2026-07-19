@@ -43,7 +43,9 @@ def require_seeded_db() -> None:
         if not db.run_select("SELECT 1 AS ok FROM sales_orders LIMIT 1"):
             pytest.fail("Database is empty — run: psql -d nexchain -f db/seed_data.sql")
     except ToolUnavailable as exc:
-        pytest.fail(f"{exc}\nStart Postgres and run: psql -d nexchain -f db/seed_data.sql")
+        pytest.fail(
+            f"{exc}\nStart Postgres and run: psql -d nexchain -f db/seed_data.sql"
+        )
 
 
 # --- The gate: one order, one shipment, one inventory record ---------------
@@ -98,7 +100,9 @@ def test_unknown_sku_and_tracking_number_also_raise_not_found() -> None:
         api_client.get_shipment_status("TRK-NOPE")
 
 
-def test_unreachable_api_raises_retryable_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unreachable_api_raises_retryable_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Connection refused: the graph must get a clean 'service unavailable',
     not an httpx exception it doesn't know how to catch."""
 
@@ -125,7 +129,9 @@ def test_timeout_raises_retryable_unavailable(monkeypatch: pytest.MonkeyPatch) -
 
 def test_upstream_500_is_retryable_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
     def server_error(*_args, **_kwargs):
-        return httpx.Response(500, json={"detail": "boom"}, request=httpx.Request("GET", "/"))
+        return httpx.Response(
+            500, json={"detail": "boom"}, request=httpx.Request("GET", "/")
+        )
 
     monkeypatch.setattr(api_client.httpx, "get", server_error)
     with pytest.raises(ToolUnavailable) as exc_info:
@@ -134,11 +140,15 @@ def test_upstream_500_is_retryable_unavailable(monkeypatch: pytest.MonkeyPatch) 
     assert exc_info.value.retryable is True
 
 
-def test_non_json_error_body_does_not_itself_crash(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_non_json_error_body_does_not_itself_crash(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """The error path must not have its own error path."""
 
     def html_error(*_args, **_kwargs):
-        return httpx.Response(502, text="<html>bad gateway</html>", request=httpx.Request("GET", "/"))
+        return httpx.Response(
+            502, text="<html>bad gateway</html>", request=httpx.Request("GET", "/")
+        )
 
     monkeypatch.setattr(api_client.httpx, "get", html_error)
     with pytest.raises(ToolUnavailable) as exc_info:
@@ -162,7 +172,9 @@ def test_database_writes_are_refused_by_the_role() -> None:
 
 
 def test_database_down_raises_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("AI_SERVICE_DATABASE_URL", "postgresql://nobody@localhost:9/nope")
+    monkeypatch.setenv(
+        "AI_SERVICE_DATABASE_URL", "postgresql://nobody@localhost:9/nope"
+    )
     with pytest.raises(ToolUnavailable) as exc_info:
         db.run_select("SELECT 1")
     assert exc_info.value.retryable is True

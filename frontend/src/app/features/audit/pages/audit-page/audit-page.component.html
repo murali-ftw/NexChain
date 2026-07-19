@@ -8,6 +8,7 @@
     <input
       type="text"
       placeholder="Search by question, user, or trace ID..."
+      aria-label="Search by question, user, or trace ID"
       [ngModel]="searchTerm()"
       (ngModelChange)="searchTerm.set($event)"
     />
@@ -18,6 +19,7 @@
       class="audit-page__filter"
       type="text"
       placeholder="Filter by user..."
+      aria-label="Filter by user"
       [ngModel]="userFilter()"
       (ngModelChange)="userFilter.set($event)"
     />

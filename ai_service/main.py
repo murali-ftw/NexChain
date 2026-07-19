@@ -17,7 +17,11 @@ from __future__ import annotations
 import logging
 import os
 import uuid
-from concurrent.futures import Future, ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+from concurrent.futures import (
+    Future,
+    ThreadPoolExecutor,
+    TimeoutError as FutureTimeoutError,
+)
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -50,7 +54,10 @@ _executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="ai-graph")
 
 
 def graph_timeout_seconds() -> float:
-    return float(os.environ.get("AI_SERVICE_GRAPH_TIMEOUT_SECONDS", "") or DEFAULT_GRAPH_TIMEOUT_SECONDS)
+    return float(
+        os.environ.get("AI_SERVICE_GRAPH_TIMEOUT_SECONDS", "")
+        or DEFAULT_GRAPH_TIMEOUT_SECONDS
+    )
 
 
 def _initial_state(request: AiQueryRequest, session_id: str) -> CoPilotState:
@@ -71,7 +78,9 @@ def _initial_state(request: AiQueryRequest, session_id: str) -> CoPilotState:
 
 
 @app.exception_handler(RequestValidationError)
-async def _validation_error(_request: Request, exc: RequestValidationError) -> JSONResponse:
+async def _validation_error(
+    _request: Request, exc: RequestValidationError
+) -> JSONResponse:
     """Spring Boot must never see a raw FastAPI validation blob; give it the
     same {"detail": ...} shape every other error path here uses so its error
     mapping (docs/api_contracts.md) has one thing to parse."""
@@ -117,7 +126,11 @@ def query(request: AiQueryRequest) -> AiQueryResponse:
     try:
         final_state = future.result(timeout=graph_timeout_seconds())
     except FutureTimeoutError:
-        logger.error("ai_query trace_id=%s timed out after %ss", trace_id, graph_timeout_seconds())
+        logger.error(
+            "ai_query trace_id=%s timed out after %ss",
+            trace_id,
+            graph_timeout_seconds(),
+        )
         raise TimeoutError(f"AI pipeline exceeded {graph_timeout_seconds()}s") from None
 
     fields = state_to_fields(final_state)

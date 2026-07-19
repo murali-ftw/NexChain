@@ -51,8 +51,18 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 DEFAULT_PORT = 8002  # 4200 Angular, 8080 Spring Boot, 8000 mock_apis, 8001 ai_service
+# FastMCP's own default (127.0.0.1) is correct for a locally-spawned stdio
+# client but unreachable from outside a container on streamable-http/sse —
+# Docker's port mapping forwards to the container's external interface, not
+# its loopback. MCP_HOST lets a container override it; local/stdio use is
+# unaffected either way, since host only matters for network transports.
+DEFAULT_HOST = "127.0.0.1"
 
-mcp = FastMCP("nexchain-tools", port=int(os.environ.get("MCP_PORT") or DEFAULT_PORT))
+mcp = FastMCP(
+    "nexchain-tools",
+    host=os.environ.get("MCP_HOST") or DEFAULT_HOST,
+    port=int(os.environ.get("MCP_PORT") or DEFAULT_PORT),
+)
 
 T = TypeVar("T")
 
@@ -110,9 +120,16 @@ def db_query(sql: str) -> DBResult:
             sql,
             validation.reason,
         )
-        raise ToolError("db_query", f"rejected: {validation.reason}", retryable=False, status_code=400)
+        raise ToolError(
+            "db_query",
+            f"rejected: {validation.reason}",
+            retryable=False,
+            status_code=400,
+        )
     return DBResult(
-        rows=to_jsonable_python(_call("db_query", sql, db.run_select, validation.safe_sql))
+        rows=to_jsonable_python(
+            _call("db_query", sql, db.run_select, validation.safe_sql)
+        )
     )
 
 
@@ -194,5 +211,7 @@ def get_inventory(sku: str) -> InventoryRecord:
 if __name__ == "__main__":
     transport = os.environ.get("MCP_TRANSPORT") or "stdio"
     if transport not in _VALID_TRANSPORTS:
-        raise ValueError(f"MCP_TRANSPORT must be one of {_VALID_TRANSPORTS}, got {transport!r}")
+        raise ValueError(
+            f"MCP_TRANSPORT must be one of {_VALID_TRANSPORTS}, got {transport!r}"
+        )
     mcp.run(transport=transport)  # type: ignore[arg-type]

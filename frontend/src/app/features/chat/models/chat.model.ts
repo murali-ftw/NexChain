@@ -36,6 +36,8 @@ export interface ChatResponse {
   partial: boolean;
   warnings: string[];
   error: string | null;
+  agentsInvoked: string[];
+  generatedSql: string | null;
 }
 
 /**

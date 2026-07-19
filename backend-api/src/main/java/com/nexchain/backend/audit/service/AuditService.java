@@ -24,12 +24,12 @@ public class AuditService {
         this.userStore = userStore;
     }
 
-    /** Called by {@code ChatController} after every successful /api/chat response — the
-     * chat pipeline is still a Day 4 mock (no real intent classifier, agents, SQL
-     * generation, or tool calls — that's P2.10/P3), so {@code agentsInvoked},
-     * {@code generatedSql}, and {@code apiCalls} are empty/null: there is nothing real
-     * to report there yet. {@code detectedIntent} and {@code kbSources} are populated
-     * from what the response actually carries. */
+    /** Called by {@code ChatController} after every successful /api/chat response.
+     * {@code agentsInvoked} and {@code generatedSql} come straight from the response
+     * (ai/contracts.py CoPilotResponse carries both — see ChatResponse's docstring);
+     * {@code apiCalls} stays empty because no wire field for it exists anywhere
+     * upstream yet, unlike those two. {@code detectedIntent} and {@code kbSources}
+     * are populated from what the response actually carries. */
     public void record(String userEmail, String sessionId, String rawQuestion, ChatResponse response) {
         String displayUser = userStore.findByEmail(userEmail).map(u -> u.username()).orElse(userEmail);
         AuditEntity entity =
@@ -39,8 +39,8 @@ public class AuditService {
                         sessionId,
                         rawQuestion,
                         List.of(response.intent().name()),
-                        List.of(),
-                        null,
+                        response.agentsInvoked(),
+                        response.generatedSql(),
                         List.of(),
                         response.sources(),
                         response.slaStatus(),

@@ -5,6 +5,7 @@ import { ChatPageComponent } from './features/chat/pages/chat-page/chat-page.com
 import { HistoryPageComponent } from './features/history/pages/history-page/history-page.component';
 import { AuditPageComponent } from './features/audit/pages/audit-page/audit-page.component';
 import { authGuard } from './core/guards/auth.guard';
+import { adminGuard } from './core/guards/admin.guard';
 
 export const routes: Routes = [
   { path: 'login', component: LoginPageComponent },
@@ -16,7 +17,7 @@ export const routes: Routes = [
     children: [
       { path: 'chat', component: ChatPageComponent },
       { path: 'history', component: HistoryPageComponent },
-      { path: 'audit', component: AuditPageComponent },
+      { path: 'audit', component: AuditPageComponent, canActivate: [adminGuard] },
     ],
   },
   { path: '**', redirectTo: 'login' },

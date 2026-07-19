@@ -53,7 +53,11 @@ def _classify_with_rate_limit_retry(question: str) -> IntentResult:
     rather than catching an exception like the KB/SQL agents' evals do."""
     result = classify(question)
     for attempt in range(MAX_RATE_LIMIT_RETRIES):
-        if result.resolved_by != "llm" or not result.error or not _is_rate_limited(result.error):
+        if (
+            result.resolved_by != "llm"
+            or not result.error
+            or not _is_rate_limited(result.error)
+        ):
             return result
         wait = _extract_retry_after_seconds(result.error)
         if wait is None:
@@ -96,7 +100,9 @@ def run(only_ids: set[int] | None = None) -> None:
         actual = result.routing_category.value if result.routing_category else None
         ok = actual == expected
 
-        print(f"  resolved_by={result.resolved_by} intent={result.intent} routing_category={actual}")
+        print(
+            f"  resolved_by={result.resolved_by} intent={result.intent} routing_category={actual}"
+        )
         if result.error:
             print(f"  error: {result.error}")
         print("  PASS" if ok else f"  FAIL (expected {expected}, got {actual})")
@@ -117,7 +123,9 @@ def run(only_ids: set[int] | None = None) -> None:
         print(f"  {category:18} {cat_passed}/{cat_total}")
 
     print(f"\nOverall: {passed}/{total_run} passed this run.")
-    print(f"Resolved by rules (0 API calls): {rules_count}. Resolved by LLM: {llm_count}.")
+    print(
+        f"Resolved by rules (0 API calls): {rules_count}. Resolved by LLM: {llm_count}."
+    )
     if only_ids is None:
         print(f"Gate: {passed}/{len(TEST_QUESTIONS)} (need >= {GATE_THRESHOLD})")
         print("GATE MET" if passed >= GATE_THRESHOLD else "GATE NOT MET")
