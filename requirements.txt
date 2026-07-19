@@ -35,7 +35,7 @@ python-dotenv>=1.0
 # --- Observability ---
 opentelemetry-api>=1.27
 opentelemetry-sdk>=1.27
-opentelemetry-instrumentation-fastapi>=0.48b0
+opentelemetry-instrumentation-fastapi>=0.65b0
 
 # --- Testing ---
 pytest>=8.3
