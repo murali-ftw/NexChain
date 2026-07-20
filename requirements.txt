@@ -17,7 +17,7 @@ mcp>=1.0
 
 # --- Knowledge Base / RAG ---
 chromadb>=0.5
-sentence-transformers>=3.2
+sentence-transformers>=5.6.0
 
 # --- Relational database access ---
 sqlalchemy>=2.0
