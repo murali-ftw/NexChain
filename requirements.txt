@@ -3,7 +3,7 @@
 # See docs/02_technical_requirements.md Section 2 for the full stack rationale.
 
 # --- AI service host ---
-fastapi>=0.115
+fastapi>=0.139.2
 uvicorn[standard]>=0.32
 pydantic>=2.9
 
