@@ -15,13 +15,17 @@ from __future__ import annotations
 
 import re
 
-_ORDER_NO_RE = re.compile(r"\b(so-\d+)\b", re.IGNORECASE)
+_ORDER_NO_RE = re.compile(r"\b(so)[\s-](\d+)\b", re.IGNORECASE)
 _TRACKING_NO_RE = re.compile(r"\b(trk-[\w-]+)\b", re.IGNORECASE)
 
 
 def extract_order_no(text: str) -> str | None:
+    # Normalizes "so 45892" to "SO-45892" (canonical, hyphenated form the DB
+    # actually stores) — matching intent_classifier/rules.py's wider detection
+    # regex here without normalizing would let routing recognize the order
+    # reference while every downstream lookup still misses on the raw text.
     match = _ORDER_NO_RE.search(text)
-    return match.group(1).upper() if match else None
+    return f"{match.group(1)}-{match.group(2)}".upper() if match else None
 
 
 def extract_tracking_no(text: str) -> str | None:

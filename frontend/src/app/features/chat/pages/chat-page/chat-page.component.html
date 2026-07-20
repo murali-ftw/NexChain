@@ -27,7 +27,7 @@
           @case ('error') {
             <div class="chat-error" role="alert">
               <p>{{ message.message }}</p>
-              <button type="button" class="chat-error__retry" (click)="retry(message.retryText)">
+              <button type="button" class="chat-error__retry" (click)="retry(message.retryText, message.restoreId)">
                 Retry
               </button>
             </div>

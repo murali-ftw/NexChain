@@ -17,7 +17,7 @@ import re
 
 from ai.contracts import BusinessIntent
 
-_ORDER_NO_RE = re.compile(r"\bso-\d+\b", re.IGNORECASE)
+_ORDER_NO_RE = re.compile(r"\bso[\s-]\d+\b", re.IGNORECASE)
 _TRACKING_NO_RE = re.compile(r"\btrk-[\w-]+\b", re.IGNORECASE)
 
 _REASON_ACTION_WORDS = (

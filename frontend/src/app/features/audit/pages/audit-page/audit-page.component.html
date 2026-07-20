@@ -45,6 +45,7 @@
     </select>
   </div>
 
+  <div class="audit-table__scroll">
   <table class="audit-table">
     <thead>
       <tr>
@@ -86,6 +87,7 @@
       }
     </tbody>
   </table>
+  </div>
 
   @if (selectedEntry(); as entry) {
     <div class="audit-drawer__backdrop" (click)="closeDetail()">

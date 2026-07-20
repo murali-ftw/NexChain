@@ -94,7 +94,7 @@ async def _unhandled(_request: Request, exc: Exception) -> JSONResponse:
     passes a 5xx through to Angular. So failures must be non-200 and typed,
     not a stack trace."""
     logger.exception("Unhandled error in /ai/query")
-    return JSONResponse(status_code=500, content={"detail": f"AI service error: {exc}"})
+    return JSONResponse(status_code=500, content={"detail": "AI service error: internal failure"})
 
 
 @app.get("/health")

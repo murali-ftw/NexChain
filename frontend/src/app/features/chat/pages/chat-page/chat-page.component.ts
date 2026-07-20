@@ -1,5 +1,5 @@
 import { Component, ElementRef, OnInit, ViewChild, signal } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { timer } from 'rxjs';
 import { ChatInputComponent } from '../../../../shared/components/chat-input/chat-input.component';
 import { UserMessageComponent } from '../../../../shared/components/user-message/user-message.component';
@@ -34,6 +34,7 @@ export class ChatPageComponent implements OnInit {
     private readonly chatApi: ChatApiService,
     private readonly historyApi: HistoryApiService,
     private readonly route: ActivatedRoute,
+    private readonly router: Router,
   ) {}
 
   ngOnInit(): void {
@@ -41,6 +42,10 @@ export class ChatPageComponent implements OnInit {
     if (!restoreId) {
       return;
     }
+    this.restoreConversation(restoreId);
+  }
+
+  private restoreConversation(restoreId: string): void {
     this.isRestoring.set(true);
     this.historyApi.getHistoryDetail(restoreId).subscribe({
       next: (detail) => {
@@ -61,7 +66,7 @@ export class ChatPageComponent implements OnInit {
         this.isRestoring.set(false);
         const message = err instanceof Error ? err.message : 'That conversation could not be restored.';
         this.messages.set([
-          { kind: 'error', id: crypto.randomUUID(), message, retryText: '', timestamp: new Date() },
+          { kind: 'error', id: crypto.randomUUID(), message, retryText: '', restoreId, timestamp: new Date() },
         ]);
       },
     });
@@ -115,7 +120,11 @@ export class ChatPageComponent implements OnInit {
     });
   }
 
-  retry(text: string): void {
+  retry(text: string, restoreId?: string): void {
+    if (restoreId) {
+      this.restoreConversation(restoreId);
+      return;
+    }
     this.onSend(text);
   }
 
@@ -126,6 +135,22 @@ export class ChatPageComponent implements OnInit {
       { kind: 'assistant', id: crypto.randomUUID(), response, timestamp: new Date() },
     ]);
     this.scrollToBottom();
+    this.syncSessionIdToUrl();
+  }
+
+  /** Puts the active sessionId in the URL once a real turn has round-tripped, so a
+   * mid-conversation page refresh restores it via the same query-param path History
+   * links already use, instead of silently dropping the conversation (Day 13 QA). */
+  private syncSessionIdToUrl(): void {
+    if (this.route.snapshot.queryParamMap.get('sessionId') === this.sessionId) {
+      return;
+    }
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { sessionId: this.sessionId },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   private handleError(err: unknown, retryText: string): void {

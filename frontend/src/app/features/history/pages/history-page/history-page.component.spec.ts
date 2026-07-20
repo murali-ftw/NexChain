@@ -91,18 +91,31 @@ describe('HistoryPageComponent', () => {
     expect(routerSpy.navigate).toHaveBeenCalledWith(['/chat'], { queryParams: { sessionId: 'sess-1' } });
   });
 
-  it('delete removes the conversation from the list on success', () => {
+  it('delete removes the conversation from the list on success after confirmation', () => {
+    spyOn(window, 'confirm').and.returnValue(true);
     const fixture = TestBed.createComponent(HistoryPageComponent);
     fixture.detectChanges();
     httpMock.expectOne(HISTORY_URL).flush(ITEMS);
     fixture.detectChanges();
 
-    fixture.componentInstance.remove(ITEMS[0]);
+    fixture.componentInstance.confirmRemove(ITEMS[0]);
     httpMock.expectOne(`${HISTORY_URL}/sess-1`).flush(null, { status: 204, statusText: 'No Content' });
     fixture.detectChanges();
 
     expect(fixture.componentInstance.items().length).toBe(1);
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Is SKU-1001 in stock?');
+  });
+
+  it('delete does nothing when the user cancels the confirmation', () => {
+    spyOn(window, 'confirm').and.returnValue(false);
+    const fixture = TestBed.createComponent(HistoryPageComponent);
+    fixture.detectChanges();
+    httpMock.expectOne(HISTORY_URL).flush(ITEMS);
+    fixture.detectChanges();
+
+    fixture.componentInstance.confirmRemove(ITEMS[0]);
+
+    expect(fixture.componentInstance.items().length).toBe(2);
   });
 
   it('shows an error message when the history request fails', () => {

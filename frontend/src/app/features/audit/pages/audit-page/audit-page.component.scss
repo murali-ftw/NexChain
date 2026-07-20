@@ -1,5 +1,9 @@
 .audit-page {
   padding: 24px 32px;
+
+  @media (max-width: 900px) {
+    padding: 16px;
+  }
 }
 
 .audit-page__header {
@@ -44,8 +48,14 @@
 
 .audit-page__filters {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 16px;
+}
+
+.audit-table__scroll {
+  width: 100%;
+  overflow-x: auto;
 }
 
 .audit-page__filter {

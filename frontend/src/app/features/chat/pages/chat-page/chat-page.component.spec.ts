@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { fakeAsync, TestBed, tick } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { environment } from '../../../../../environments/environment';
 import {
   FLAGSHIP_RESPONSE,
@@ -27,14 +27,17 @@ function activatedRouteStub(queryParams: Record<string, string> = {}) {
 
 describe('ChatPageComponent', () => {
   let httpMock: HttpTestingController;
+  let routerSpy: jasmine.SpyObj<Router>;
 
   beforeEach(async () => {
+    routerSpy = jasmine.createSpyObj('Router', ['navigate']);
     await TestBed.configureTestingModule({
       imports: [ChatPageComponent],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: ActivatedRoute, useValue: activatedRouteStub() },
+        { provide: Router, useValue: routerSpy },
       ],
     }).compileComponents();
     httpMock = TestBed.inject(HttpTestingController);
@@ -271,6 +274,7 @@ describe('ChatPageComponent', () => {
     const HISTORY_DETAIL_URL = `${environment.apiBaseUrl}/api/chat/history/sess-1`;
 
     beforeEach(async () => {
+      routerSpy = jasmine.createSpyObj('Router', ['navigate']);
       await TestBed.resetTestingModule()
         .configureTestingModule({
           imports: [ChatPageComponent],
@@ -278,6 +282,7 @@ describe('ChatPageComponent', () => {
             provideHttpClient(),
             provideHttpClientTesting(),
             { provide: ActivatedRoute, useValue: activatedRouteStub({ sessionId: 'sess-1' }) },
+            { provide: Router, useValue: routerSpy },
           ],
         })
         .compileComponents();
@@ -339,6 +344,37 @@ describe('ChatPageComponent', () => {
 
       expect(component.isRestoring()).toBe(false);
       expect(component.messages()[0].kind).toBe('error');
+    });
+
+    it('retrying a failed restore re-fetches the conversation instead of sending an empty message', () => {
+      const fixture = TestBed.createComponent(ChatPageComponent);
+      fixture.detectChanges();
+      const component = fixture.componentInstance;
+
+      httpMock.expectOne(HISTORY_DETAIL_URL).flush('Not found', { status: 404, statusText: 'Not Found' });
+      fixture.detectChanges();
+
+      const errorMessage = component.messages()[0];
+      expect(errorMessage.kind).toBe('error');
+      if (errorMessage.kind === 'error') {
+        expect(errorMessage.restoreId).toBe('sess-1');
+        component.retry(errorMessage.retryText, errorMessage.restoreId);
+      }
+      fixture.detectChanges();
+
+      expect(component.isRestoring()).toBe(true);
+      httpMock.expectOne(HISTORY_DETAIL_URL).flush({
+        id: 'sess-1',
+        sessionId: 'sess-1',
+        turns: [
+          { question: 'Is SKU-1001 in stock?', response: toWireResponse(INVENTORY_RESPONSE), timestamp: new Date().toISOString() },
+        ],
+      });
+      fixture.detectChanges();
+
+      expect(component.isRestoring()).toBe(false);
+      expect(component.messages().length).toBe(2);
+      expect(component.messages()[0].kind).toBe('user');
     });
   });
 });

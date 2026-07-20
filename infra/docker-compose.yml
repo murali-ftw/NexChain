@@ -61,9 +61,9 @@ services:
       postgres:
         condition: service_healthy
       mock_apis:
-        condition: service_started
+        condition: service_healthy
       mcp_server:
-        condition: service_started
+        condition: service_healthy
 
   mcp_server:
     build:
@@ -84,7 +84,7 @@ services:
       postgres:
         condition: service_healthy
       mock_apis:
-        condition: service_started
+        condition: service_healthy
 
   backend-api:
     build:
@@ -96,7 +96,8 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - ai_service
+      ai_service:
+        condition: service_healthy
 
   frontend:
     build:
@@ -105,7 +106,8 @@ services:
     ports:
       - "4200:80"
     depends_on:
-      - backend-api
+      backend-api:
+        condition: service_healthy
 
 volumes:
   postgres_data:

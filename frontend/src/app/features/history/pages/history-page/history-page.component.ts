@@ -68,7 +68,14 @@ export class HistoryPageComponent implements OnInit {
     this.router.navigate(['/chat'], { queryParams: { sessionId: item.sessionId } });
   }
 
-  remove(item: HistoryItem): void {
+  confirmRemove(item: HistoryItem): void {
+    if (!confirm(`Delete this conversation? This can't be undone.\n\n"${item.question}"`)) {
+      return;
+    }
+    this.remove(item);
+  }
+
+  private remove(item: HistoryItem): void {
     this.historyApi.deleteHistory(item.id).subscribe({
       next: () => this.items.update((items) => items.filter((i) => i.id !== item.id)),
       error: (err: unknown) => {

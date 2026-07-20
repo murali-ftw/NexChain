@@ -5,6 +5,7 @@
       class="history-page__search"
       type="text"
       placeholder="Search past queries..."
+      aria-label="Search past queries"
       [ngModel]="searchTerm()"
       (ngModelChange)="onSearchTermChange($event)"
     />
@@ -29,7 +30,7 @@
           </div>
           <div class="history-item__actions">
             <button type="button" class="history-item__restore" (click)="restore(item)">Restore</button>
-            <button type="button" class="history-item__delete" (click)="remove(item)">Delete</button>
+            <button type="button" class="history-item__delete" (click)="confirmRemove(item)">Delete</button>
           </div>
         </li>
       }
