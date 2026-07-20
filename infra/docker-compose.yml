@@ -73,6 +73,11 @@ services:
     environment:
       AI_SERVICE_DATABASE_URL: postgresql://copilot_readonly:${COPILOT_READONLY_PASSWORD}@postgres:5432/nexchain
       MOCK_API_BASE_URL: http://mock_apis:8000
+      # ai_service reaches this container as "mcp_server:8002" (MCP_SERVER_URL
+      # above), which differs from the server's localhost-only default
+      # allowlist (mcp_server/server.py) — must be added explicitly or the
+      # DNS-rebinding protection added there rejects every request.
+      MCP_ALLOWED_HOSTS: "mcp_server:8002,localhost:8002,127.0.0.1:8002"
     ports:
       - "8002:8002"
     depends_on:
