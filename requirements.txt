@@ -21,7 +21,7 @@ sentence-transformers>=3.2
 
 # --- Relational database access ---
 sqlalchemy>=2.0
-psycopg[binary]>=3.2
+psycopg[binary]>=3.3.4
 
 # --- Text-to-SQL validation ---
 sqlglot>=25.0
