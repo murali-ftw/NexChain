@@ -3,7 +3,7 @@
 ## Status (as of commit)
 
 Retrieval, context assembly, and source metadata are verified working
-across all 13 questions in `test_questions.py` (correct source
+across all 13 questions in `eval_questions.py` (correct source
 document matched every time, including the flagship customs/HS-code
 question). The completion gate — **>=10 questions with a graded,
 LLM-generated answer** — is **MET**: 13/13 passed (live run, Day 6)
@@ -51,7 +51,7 @@ other empty-sources result is a bug, not a valid answer.
 python -m ai.agents.knowledge_base_agent.eval
 ```
 
-Gate: **>= 10 of the 13 curated questions** (`test_questions.py`) must
+Gate: **>= 10 of the 13 curated questions** (`eval_questions.py`) must
 return a relevant answer with a correctly-matching source. The
 flagship question ("...HS code mismatch...") must cite the Customs
 Hold SOP.
@@ -101,5 +101,5 @@ live, replace this function's body with an MCP client call; nothing in
 | `retrieval.py` | Thin boundary over `ai/rag/vector_store` — the `kb_search` swap point |
 | `prompts.py` | Provider-agnostic grounded-answer prompt + abstention text |
 | `agent.py` | Context assembly + the `answer_policy_question()` entrypoint |
-| `test_questions.py` | 13 curated policy questions covering all 12 KB documents |
+| `eval_questions.py` | 13 curated policy questions covering all 12 KB documents |
 | `eval.py` | Runs the question set, reports pass/fail against the completion gate |

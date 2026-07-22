@@ -3,7 +3,7 @@
 ## Status (as of commit)
 
 Live eval: **20/20** questions routed to the correct `RoutingCategory`
-(`test_questions.py`) — clears the P3.7 gate (`docs/team_plan.md`,
+(`eval_questions.py`) — clears the P3.7 gate (`docs/team_plan.md`,
 >= 18/20). 16/20 resolved by the zero-cost rule fast-path; the
 remaining 4 (one per category, deliberately ambiguous) correctly fell
 through to the LLM fallback, proving that path works too, not just the
@@ -64,5 +64,5 @@ KB and SQL agents. No second LLM path was added; the fallback reuses
 | `rules.py` | Zero-cost deterministic keyword/pattern fast-path |
 | `prompts.py` | LLM fallback prompt (category definitions + few-shot) |
 | `classifier.py` | Orchestration: rules -> LLM fallback -> `IntentResult`, routing always derived via `INTENT_TO_ROUTING` |
-| `test_questions.py` | 20 questions, 5 per category, 4 deliberately ambiguous |
+| `eval_questions.py` | 20 questions, 5 per category, 4 deliberately ambiguous |
 | `eval.py` | Runs the question set, reports pass/fail + rules-vs-LLM split |

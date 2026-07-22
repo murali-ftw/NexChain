@@ -1,6 +1,6 @@
 """P3.7 completion-gate evaluation.
 
-Runs the curated question set (test_questions.py) through the intent
+Runs the curated question set (eval_questions.py) through the intent
 classifier and reports, per question: expected vs actual
 RoutingCategory, which layer resolved it (rules/LLM), and whether it
 counts as a pass. Only ambiguous questions ever reach the LLM — rule-
@@ -22,7 +22,7 @@ import re
 import time
 
 from ai.agents.intent_classifier.classifier import IntentResult, classify
-from ai.agents.intent_classifier.test_questions import GATE_THRESHOLD, TEST_QUESTIONS
+from ai.agents.intent_classifier.eval_questions import GATE_THRESHOLD, TEST_QUESTIONS
 
 SLEEP_BETWEEN_LLM_CALLS_SECONDS = 2.5
 MAX_RATE_LIMIT_RETRIES = 3
