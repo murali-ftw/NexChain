@@ -1,5 +1,6 @@
 package com.nexchain.backend;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -565,6 +566,46 @@ class ApplicationSmokeTests {
     }
 
     @Test
+    void historyRecordRejectsAppendToAnotherUsersSession() throws Exception {
+        // User A creates a session
+        mockMvc.perform(
+                        post("/api/chat")
+                                .header("Authorization", "Bearer " + token)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {"query": "What is the status of order SO-45892?", "sessionId": "shared-sess"}
+                                        """))
+                .andExpect(status().isOk());
+
+        // Verify user A can read their session (contains 1 turn)
+        mockMvc.perform(get("/api/chat/history/shared-sess").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.turns", hasSize(1)))
+                .andExpect(jsonPath("$.turns[0].question", containsString("status of order")));
+
+        // User B tries to append to the same session id
+        String otherToken = login(SECOND_EMAIL, SECOND_PASSWORD);
+        mockMvc.perform(
+                        post("/api/chat")
+                                .header("Authorization", "Bearer " + otherToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {"query": "Different question from user B", "sessionId": "shared-sess"}
+                                        """))
+                .andExpect(status().isOk());
+
+        // Verify user A's session was NOT modified (still contains only A's turn)
+        mockMvc.perform(get("/api/chat/history/shared-sess").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.turns", hasSize(1)))
+                .andExpect(jsonPath("$.turns[0].question", containsString("status of order")));
+
+        // Verify user B does NOT have access to user A's session
+        mockMvc.perform(get("/api/chat/history/shared-sess").header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void deleteHistoryRemovesTheConversation() throws Exception {
         mockMvc.perform(
                         post("/api/chat")
@@ -821,5 +862,45 @@ class ApplicationSmokeTests {
         mockMvc.perform(get("/api/audit").header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(callCount)));
+    }
+
+    @Test
+    void historyRecordEmitsWarnLogOnOwnershipMismatch() throws Exception {
+        // User A creates a session
+        mockMvc.perform(
+                        post("/api/chat")
+                                .header("Authorization", "Bearer " + token)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {"query": "What is the status of order SO-45892?", "sessionId": "idor-warn-test"}
+                                        """))
+                .andExpect(status().isOk());
+
+        // Verify user A can read their session
+        mockMvc.perform(get("/api/chat/history/idor-warn-test").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.turns", hasSize(1)));
+
+        // User B attempts to append to user A's session.
+        // ConversationHistoryStore.recordTurn should log a WARN event before rejecting.
+        String otherToken = login(SECOND_EMAIL, SECOND_PASSWORD);
+        mockMvc.perform(
+                        post("/api/chat")
+                                .header("Authorization", "Bearer " + otherToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {"query": "Different user query", "sessionId": "idor-warn-test"}
+                                        """))
+                .andExpect(status().isOk());
+
+        // Verify user A's session was NOT modified (ownership check + log rejection both work).
+        mockMvc.perform(get("/api/chat/history/idor-warn-test").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.turns", hasSize(1)))
+                .andExpect(jsonPath("$.turns[0].question", containsString("status of order")));
+
+        // Verify user B cannot read user A's session (access control verified at read layer too).
+        mockMvc.perform(get("/api/chat/history/idor-warn-test").header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isNotFound());
     }
 }

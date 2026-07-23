@@ -101,7 +101,9 @@ def generate(prompt: str, timeout: float = DEFAULT_TIMEOUT_SECONDS) -> str:
         # implementation detail, not something an end user should see. Full detail
         # goes to the log; only a generic message crosses that boundary (Day 13 QA).
         logger.warning("LLM provider call failed: %s", exc)
-        status_code = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
+        status_code = (
+            exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
+        )
         raise LLMProviderError(
             "The AI provider call failed. Please try again.", status_code=status_code
         ) from exc

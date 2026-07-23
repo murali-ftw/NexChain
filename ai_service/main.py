@@ -103,9 +103,15 @@ async def _tool_error(_request: Request, exc: ToolError) -> JSONResponse:
     (tech-req §7) rather than the generic 500 a bug gets. The client detail stays
     generic (the message can embed internal error text); the specifics are logged
     for the trace_id to correlate against (tech-req §9)."""
-    logger.warning("Tool failure in /ai/query: tool=%s retryable=%s detail=%s",
-                   exc.tool, exc.retryable, exc.message)
-    return JSONResponse(status_code=503, content={"detail": "AI tool temporarily unavailable"})
+    logger.warning(
+        "Tool failure in /ai/query: tool=%s retryable=%s detail=%s",
+        exc.tool,
+        exc.retryable,
+        exc.message,
+    )
+    return JSONResponse(
+        status_code=503, content={"detail": "AI tool temporarily unavailable"}
+    )
 
 
 @app.exception_handler(Exception)
@@ -116,7 +122,9 @@ async def _unhandled(_request: Request, exc: Exception) -> JSONResponse:
     stack trace. The client message stays generic (docs/api_contracts.md); the
     real exception is logged server-side, not returned."""
     logger.exception("Unhandled error in /ai/query")
-    return JSONResponse(status_code=500, content={"detail": "Internal AI service error"})
+    return JSONResponse(
+        status_code=500, content={"detail": "Internal AI service error"}
+    )
 
 
 @app.get("/health")

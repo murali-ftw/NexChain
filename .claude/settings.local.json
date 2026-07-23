@@ -67,7 +67,12 @@
       "Read(//Users/muralik/**)",
       "Bash(/usr/libexec/java_home -V)",
       "Read(//opt/homebrew/opt/**)",
-      "Read(//usr/local/bin/**)"
+      "Read(//usr/local/bin/**)",
+      "Bash(echo \"EXIT=$?\")",
+      "Read(//tmp/**)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ]
   }
 }

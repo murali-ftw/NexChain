@@ -152,7 +152,7 @@ async def test_tool_error_maps_to_503_with_a_generic_detail() -> None:
     from ai_service.tools.errors import ToolUnavailable
 
     exc = ToolUnavailable("db_query", "cannot reach the database: password=hunter2")
-    response = await _tool_error(None, exc)
+    response = await _tool_error(None, exc)  # type: ignore[arg-type]
     assert response.status_code == 503
     assert b"hunter2" not in response.body
     assert response.body == b'{"detail":"AI tool temporarily unavailable"}'
@@ -164,7 +164,7 @@ async def test_unhandled_error_stays_generic_and_does_not_leak() -> None:
     message stays generic — the exception text is logged, not returned."""
     from ai_service.main import _unhandled
 
-    response = await _unhandled(None, RuntimeError("boom: secret internal detail"))
+    response = await _unhandled(None, RuntimeError("boom: secret internal detail"))  # type: ignore[arg-type]
     assert response.status_code == 500
     assert b"secret internal detail" not in response.body
     assert response.body == b'{"detail":"Internal AI service error"}'

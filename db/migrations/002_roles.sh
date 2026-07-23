@@ -25,6 +25,13 @@ GRANT SELECT ON
     shipment, invoice, payment, carrier_tracking, sla_rules,
     knowledge_documents, knowledge_chunks
 TO copilot_readonly;
+-- Defense in depth alongside SQL_ROW_LIMIT (ai/contracts.py) and the
+-- validator's unrecognized-function rejection (blocks pg_sleep etc.): caps
+-- how long any single query on this connection may run, matching
+-- ai_service/.env.example's AI_SERVICE_DB_TIMEOUT_SECONDS=5, so a legitimate
+-- but expensive SELECT can't tie up the connection past what the app layer
+-- itself is willing to wait for.
+ALTER ROLE copilot_readonly SET statement_timeout = '5s';
 
 -- Read/write role used by Spring Boot for auth + audit persistence.
 CREATE ROLE copilot_app LOGIN PASSWORD '${COPILOT_APP_PASSWORD:?set COPILOT_APP_PASSWORD}';

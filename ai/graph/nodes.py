@@ -14,7 +14,11 @@ import json
 from ai.agents.business_rule_agent.rules import RuleEngineInput, evaluate
 from ai.agents.knowledge_base_agent.agent import answer_policy_question
 from ai.agents.text_to_sql_agent.agent import generate_sql
-from ai.agents.text_to_sql_agent.db_boundary import db_query, get_order, resolve_tracking_no
+from ai.agents.text_to_sql_agent.db_boundary import (
+    db_query,
+    get_order,
+    resolve_tracking_no,
+)
 from ai.contracts import AgentNode, SLAStatus
 from ai.graph.api_boundary import get_shipment_status
 from ai.graph.entities import extract_order_no, extract_tracking_no

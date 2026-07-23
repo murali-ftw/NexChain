@@ -9,6 +9,7 @@ import { ChatApiService } from '../../services/chat-api.service';
 import { HistoryApiService } from '../../../history/services/history-api.service';
 import { DEGRADED_RESPONSE } from '../../data/chat-fixtures';
 import { ChatMessage, ChatResponse } from '../../models/chat.model';
+import { environment } from '../../../../../environments/environment';
 
 @Component({
   selector: 'app-chat-page',
@@ -96,13 +97,15 @@ export class ChatPageComponent implements OnInit {
     // simulate its own failure, and a real "stop the backend" test covers the
     // unavailable-backend case more realistically. Every other query — including every
     // suggested question — goes through the real POST /api/chat round trip below.
-    if (normalized.includes('simulate error')) {
+    // Disabled in production builds (environment.production) so a real end user can
+    // never trigger a fake response by typing these phrases.
+    if (!environment.production && normalized.includes('simulate error')) {
       timer(600).subscribe(() =>
         this.handleError(new Error('Unable to retrieve the response. Please try again.'), trimmed),
       );
       return;
     }
-    if (normalized.includes('simulate degraded')) {
+    if (!environment.production && normalized.includes('simulate degraded')) {
       timer(600).subscribe(() =>
         this.handleSuccess({
           ...DEGRADED_RESPONSE,

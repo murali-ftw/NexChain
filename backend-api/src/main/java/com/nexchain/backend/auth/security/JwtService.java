@@ -9,15 +9,27 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
 import javax.crypto.SecretKey;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
- * Issues and validates self-signed HS256 JWTs. Access-token only — refresh
- * tokens are explicitly out of scope for Day 6 (docs/team_plan.md P1.6).
+ * Issues and validates self-signed, HMAC-signed JWTs. {@link Keys#hmacShaKeyFor}
+ * selects HS256/HS384/HS512 based on {@code app.jwt.secret}'s byte length (HS512
+ * needs >= 64 bytes) — docs/api_contracts.md's frozen login contract documents
+ * HS512, so a deployed secret must be at least 64 bytes for the token to match
+ * that contract. Access-token only — refresh tokens are explicitly out of scope
+ * for Day 6 (docs/team_plan.md P1.6).
  */
 @Service
 public class JwtService {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtService.class);
+
+    // Must match the fallback literal in application.yml's app.jwt.secret default.
+    private static final String INSECURE_DEFAULT_SECRET =
+            "dev-only-secret-do-not-use-in-production-replace-via-JWT_SECRET-env-var";
 
     private final SecretKey key;
     private final long expirationSeconds;
@@ -25,6 +37,13 @@ public class JwtService {
     public JwtService(
             @Value("${app.jwt.secret}") String secret,
             @Value("${app.jwt.expiration-seconds}") long expirationSeconds) {
+        if (INSECURE_DEFAULT_SECRET.equals(secret)) {
+            log.warn(
+                    "app.jwt.secret is using the well-known dev-only default. Every token signed with"
+                        + " it can be forged by anyone who has read this repository. Set the JWT_SECRET"
+                        + " environment variable to a unique, random value before exposing this service"
+                        + " outside local development.");
+        }
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationSeconds = expirationSeconds;
     }

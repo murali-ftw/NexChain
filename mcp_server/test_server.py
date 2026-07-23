@@ -160,6 +160,13 @@ async def test_a_broken_query_is_a_controlled_error_not_a_crash() -> None:
         "TRUNCATE customers",
         "INSERT INTO customers (customer_code) VALUES ('X')",
         "SELECT 1; DELETE FROM sales_orders",  # piggy-backed write
+        # RC stabilization: a data-modifying CTE still parses as exp.Select at
+        # the top level — must be caught by an explicit AST walk, not just the
+        # raw-text keyword scan (ai/agents/text_to_sql_agent/validator.py).
+        "WITH t AS (INSERT INTO sales_orders (order_no) VALUES ('X') RETURNING *) SELECT * FROM t",
+        "WITH t AS (UPDATE sales_orders SET current_status = 'Delivered' RETURNING *) SELECT * FROM t",
+        "SELECT * INTO new_table FROM sales_orders",
+        "CREATE TABLE evil AS SELECT * FROM sales_orders",
     ],
 )
 async def test_write_and_ddl_sql_is_rejected_before_execution(sql: str) -> None:
@@ -184,6 +191,46 @@ async def test_non_allowlisted_table_is_rejected() -> None:
     that alone.)"""
     async with create_connected_server_and_client_session(mcp._mcp_server) as client:
         result = await client.call_tool("db_query", {"sql": "SELECT * FROM users"})
+    assert result.isError
+    assert "non-allowlisted" in _error_text(result.content)
+
+
+@pytest.mark.asyncio
+async def test_uppercase_table_name_is_still_allowlisted() -> None:
+    """RC stabilization: Postgres folds unquoted identifiers to lowercase, so
+    `SALES_ORDERS` and `sales_orders` are the same table — the validator must
+    compare case-insensitively rather than rejecting a query for cosmetic
+    casing the LLM happened to emit."""
+    result = await call(
+        "db_query", sql="SELECT order_no FROM SALES_ORDERS WHERE order_no = 'SO-45892'"
+    )
+    assert result["rows"] == [{"order_no": "SO-45892"}]
+
+
+@pytest.mark.asyncio
+async def test_schema_qualified_table_is_rejected() -> None:
+    """RC stabilization: a schema-qualified reference (`public.sales_orders`)
+    must not silently bypass the allowlist by matching only on the bare table
+    name — reject it outright rather than depend entirely on DB grants."""
+    async with create_connected_server_and_client_session(mcp._mcp_server) as client:
+        result = await client.call_tool(
+            "db_query", {"sql": "SELECT * FROM public.sales_orders"}
+        )
+    assert result.isError
+    assert "schema-qualified" in _error_text(result.content)
+
+
+@pytest.mark.asyncio
+async def test_quoted_identifier_differs_from_unquoted() -> None:
+    """Quoted identifiers in PostgreSQL are case-sensitive and distinct from
+    unquoted identifiers. `"Sales_Orders"` is not the same table as `sales_orders`
+    or `SALES_ORDERS`. The validator should reject quoted identifiers that don't
+    exactly match an allowlisted table."""
+    async with create_connected_server_and_client_session(mcp._mcp_server) as client:
+        # Quoted identifier with different casing should be rejected (doesn't exist)
+        result = await client.call_tool(
+            "db_query", {"sql": 'SELECT order_no FROM "Sales_Orders" LIMIT 1'}
+        )
     assert result.isError
     assert "non-allowlisted" in _error_text(result.content)
 

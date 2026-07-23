@@ -60,13 +60,41 @@ def validate_sql(sql: str) -> ValidationResult:
     if not isinstance(statement, exp.Select):
         return _reject("not a SELECT statement")
 
+    # A data-modifying CTE (`WITH t AS (INSERT ... RETURNING *) SELECT * FROM t`)
+    # still parses as exp.Select at the top level — the isinstance check above
+    # does not see the DML hiding inside it. Walk the whole tree explicitly
+    # rather than relying solely on the raw-text keyword scan above.
+    dml_nodes = list(statement.find_all(exp.Insert, exp.Update, exp.Delete, exp.Merge))
+    if dml_nodes:
+        return _reject(
+            f"contains a data-modifying clause ({type(dml_nodes[0]).__name__}), "
+            "even though the statement is a SELECT"
+        )
+
     cte_aliases = {cte.alias for cte in statement.find_all(exp.CTE)}
-    tables = {t.name for t in statement.find_all(exp.Table)} - cte_aliases
-    if not tables:
+    table_nodes = [
+        t for t in statement.find_all(exp.Table) if t.name not in cte_aliases
+    ]
+    if not table_nodes:
         # A table-less SELECT (e.g. `SELECT pg_sleep(20)`) has nothing for the
         # allowlist below to check against, so it would otherwise pass
         # unconditionally. No legitimate supply-chain question needs one.
         return _reject("SELECT does not reference any table")
+    # Schema/catalog-qualified references (`other_schema.sales_orders`) are
+    # rejected outright rather than allowlisted on bare name alone — Postgres
+    # grants are the only thing stopping a same-named table in another schema
+    # otherwise, and this validator should not depend entirely on that.
+    qualified = [t.sql(dialect=_DIALECT) for t in table_nodes if t.db]
+    if qualified:
+        return _reject(f"references schema-qualified table(s): {sorted(qualified)}")
+    # Compared case-insensitively for unquoted identifiers only.
+    # Postgres folds unquoted identifiers to lowercase, so `SALES_ORDERS` and
+    # `sales_orders` are the same table. Quoted identifiers like `"Sales_Orders"`
+    # are case-sensitive and distinct from both `sales_orders` and `SALES_ORDERS`.
+    tables = {
+        t.name.lower() if not t.this.args.get("quoted") else t.name
+        for t in table_nodes
+    }
     disallowed = tables - SQL_TABLE_ALLOWLIST
     if disallowed:
         return _reject(f"references non-allowlisted table(s): {sorted(disallowed)}")

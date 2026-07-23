@@ -218,7 +218,25 @@ SQL_TABLE_ALLOWLIST: frozenset[str] = frozenset(
 )
 
 SQL_DENIED_KEYWORDS: frozenset[str] = frozenset(
-    {"INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "TRUNCATE"}
+    {
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "DROP",
+        "ALTER",
+        "TRUNCATE",
+        # RC stabilization: explicit backstop keywords, on top of the AST-level
+        # exp.Select/exp.Insert/exp.Update/exp.Delete/exp.Merge checks in
+        # ai/agents/text_to_sql_agent/validator.py — belt-and-suspenders so a
+        # future validator change can't silently reopen these by keyword alone.
+        "CREATE",
+        "GRANT",
+        "REVOKE",
+        "CALL",
+        "COPY",
+        "MERGE",
+        "VACUUM",
+    }
 )
 
 SQL_ROW_LIMIT = 200

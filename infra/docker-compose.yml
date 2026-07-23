@@ -95,6 +95,11 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dev-only-secret-do-not-use-in-production-replace-via-JWT_SECRET-env-var}
     ports:
       - "8080:8080"
+    volumes:
+      # backend-api's H2 file (application.yml: jdbc:h2:file:./data/nexchain-history)
+      # lives at /app/data (Dockerfile WORKDIR /app) — without this volume it's
+      # part of the container's writable layer and is lost on every recreate.
+      - backend_data:/app/data
     depends_on:
       ai_service:
         condition: service_healthy
@@ -111,3 +116,4 @@ services:
 
 volumes:
   postgres_data:
+  backend_data:
