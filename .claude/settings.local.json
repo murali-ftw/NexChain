@@ -69,7 +69,9 @@
       "Read(//opt/homebrew/opt/**)",
       "Read(//usr/local/bin/**)",
       "Bash(echo \"EXIT=$?\")",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(grep -v \"^commit\\\\|^Author\\\\|^Date\\\\|^$\")",
+      "Bash(npm ci *)"
     ],
     "additionalDirectories": [
       "/tmp"
