@@ -1,0 +1,30 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-3xs) var(--space-xs);
+  border-radius: var(--radius-chip);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge--breached {
+  background: var(--color-badge-breached-bg);
+  color: var(--color-badge-breached-text);
+}
+
+.badge--na {
+  background: var(--color-badge-na-bg);
+  color: var(--color-badge-na-text);
+}
+
+.badge--success {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success);
+}
+
+.badge--danger {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger);
+}

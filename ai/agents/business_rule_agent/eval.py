@@ -1,6 +1,6 @@
 """P3.10 completion-gate evaluation.
 
-Runs every hardcoded scenario (test_scenarios.py) through the pure rule
+Runs every hardcoded scenario (eval_scenarios.py) through the pure rule
 engine (rules.evaluate) and asserts EXACT equality against the documented
 expected output — no LLM calls, no live services needed.
 
@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import cast
 
 from ai.agents.business_rule_agent.rules import RuleEngineInput, evaluate
-from ai.agents.business_rule_agent.test_scenarios import SCENARIOS
+from ai.agents.business_rule_agent.eval_scenarios import SCENARIOS
 
 
 def run() -> tuple[int, int]:

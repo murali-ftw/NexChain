@@ -10,6 +10,7 @@ guaranteed failure would just waste the node's one retry.
 
 from __future__ import annotations
 
+import time
 from typing import Callable, TypeVar
 
 from ai.contracts import MAX_RETRIES_PER_NODE
@@ -19,6 +20,12 @@ from ai_service.tools.errors import ToolError
 T = TypeVar("T")
 
 _RETRYABLE_EXCEPTIONS = (LLMProviderError, LLMConfigError, ToolError)
+
+# MAX_RETRIES_PER_NODE is 1 (ai/contracts.py) — immediately re-sending into a rate
+# limit burns that single retry on a guaranteed second 429 (verified live during
+# Day 13 QA: 3 of 4 eval cases hit this exact pattern). A short fixed delay, not a
+# full backoff/jitter scheme, is enough to usually clear a per-second rate window.
+_RATE_LIMIT_BACKOFF_SECONDS = 2.0
 
 
 def call_with_retry(
@@ -39,3 +46,5 @@ def call_with_retry(
             if not retryable or attempts > MAX_RETRIES_PER_NODE:
                 message = getattr(exc, "message", None) or str(exc)
                 return None, message, attempts
+            if getattr(exc, "status_code", None) == 429:
+                time.sleep(_RATE_LIMIT_BACKOFF_SECONDS)

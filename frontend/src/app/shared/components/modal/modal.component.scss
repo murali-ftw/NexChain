@@ -1,0 +1,93 @@
+.modal {
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-card);
+  background: var(--color-glass-card);
+  backdrop-filter: blur(var(--blur-lg));
+  box-shadow: var(--shadow-glass-elevation-2);
+  border: 1px solid var(--color-border-glass-light);
+  // Callers widen this per usage (the audit record needs far more room than a
+  // delete confirmation) without needing a second dialog component.
+  width: min(92vw, var(--modal-width, 480px));
+  color: var(--color-text-primary);
+  opacity: 0;
+  transform: scale(0.96) translateY(8px);
+  transition:
+    opacity 300ms var(--ease-spring),
+    transform 300ms var(--ease-spring),
+    overlay 300ms var(--ease-spring) allow-discrete,
+    display 300ms var(--ease-spring) allow-discrete;
+
+  &[open] {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+
+    @starting-style {
+      opacity: 0;
+      transform: scale(0.96) translateY(8px);
+    }
+  }
+
+  &::backdrop {
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    transition:
+      opacity 300ms var(--ease-spring),
+      overlay 300ms var(--ease-spring) allow-discrete,
+      display 300ms var(--ease-spring) allow-discrete;
+  }
+
+  &[open]::backdrop {
+    opacity: 1;
+
+    @starting-style {
+      opacity: 0;
+    }
+  }
+}
+
+.modal__panel {
+  padding: var(--space-lg);
+}
+
+.modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.modal__title {
+  font-size: var(--text-heading);
+  line-height: var(--text-heading--line-height);
+  font-weight: var(--text-heading--font-weight);
+  letter-spacing: -0.01em;
+}
+
+// A 32px hit target rather than a bare glyph — the old 20px "×" was under the
+// 24px minimum and had no hover surface to aim at.
+.modal__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-chip);
+  background: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    background var(--duration-press) var(--ease-spring),
+    color var(--duration-press) var(--ease-spring);
+
+  &:hover {
+    background: var(--color-nav-hover-bg);
+    color: var(--color-text-primary);
+  }
+}

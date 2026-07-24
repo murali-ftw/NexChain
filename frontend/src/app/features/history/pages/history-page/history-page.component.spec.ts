@@ -50,7 +50,7 @@ describe('HistoryPageComponent', () => {
     httpMock.expectOne(HISTORY_URL).flush([]);
     fixture.detectChanges();
 
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain("You haven't asked anything yet.");
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('No query history yet');
   });
 
   it('renders every loaded conversation', () => {
@@ -91,18 +91,74 @@ describe('HistoryPageComponent', () => {
     expect(routerSpy.navigate).toHaveBeenCalledWith(['/chat'], { queryParams: { sessionId: 'sess-1' } });
   });
 
-  it('delete removes the conversation from the list on success', () => {
+  it('delete removes the conversation from the list on success after confirmation', () => {
     const fixture = TestBed.createComponent(HistoryPageComponent);
     fixture.detectChanges();
     httpMock.expectOne(HISTORY_URL).flush(ITEMS);
     fixture.detectChanges();
 
-    fixture.componentInstance.remove(ITEMS[0]);
+    fixture.componentInstance.confirmRemove(ITEMS[0]);
+    fixture.componentInstance.remove();
     httpMock.expectOne(`${HISTORY_URL}/sess-1`).flush(null, { status: 204, statusText: 'No Content' });
     fixture.detectChanges();
 
     expect(fixture.componentInstance.items().length).toBe(1);
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Is SKU-1001 in stock?');
+  });
+
+  it('delete does nothing when the user cancels the confirmation', () => {
+    const fixture = TestBed.createComponent(HistoryPageComponent);
+    fixture.detectChanges();
+    httpMock.expectOne(HISTORY_URL).flush(ITEMS);
+    fixture.detectChanges();
+
+    fixture.componentInstance.confirmRemove(ITEMS[0]);
+    fixture.componentInstance.cancelRemove();
+    fixture.componentInstance.remove();
+
+    expect(fixture.componentInstance.items().length).toBe(2);
+  });
+
+  it('the time-range filter narrows the list to recent conversations', () => {
+    const fixture = TestBed.createComponent(HistoryPageComponent);
+    fixture.detectChanges();
+    httpMock.expectOne(HISTORY_URL).flush([
+      ITEMS[0],
+      { ...ITEMS[1], timestamp: new Date(Date.now() - 40 * 86_400_000).toISOString() },
+    ]);
+    fixture.detectChanges();
+
+    fixture.componentInstance.setRange('7d');
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.filteredItems().length).toBe(1);
+    expect(fixture.componentInstance.filteredItems()[0].id).toBe('sess-1');
+  });
+
+  it('pagination caps a page at pageSize items and clamps past the last page', () => {
+    const fixture = TestBed.createComponent(HistoryPageComponent);
+    fixture.detectChanges();
+    const many: HistoryItem[] = Array.from({ length: 14 }, (_, i) => ({
+      ...ITEMS[0],
+      id: `sess-${i}`,
+      sessionId: `sess-${i}`,
+      question: `Question ${i}`,
+      timestamp: new Date(Date.now() - i * 60_000).toISOString(),
+    }));
+    httpMock.expectOne(HISTORY_URL).flush(many);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    expect(component.pageCount()).toBe(3);
+    expect(component.pagedItems().length).toBe(component.pageSize);
+
+    component.goToPage(3);
+    expect(component.pagedItems().length).toBe(2);
+
+    // Filtering down to one page must not strand the view on page 3.
+    component.onSearchTermChange('Question 0');
+    expect(component.currentPage()).toBe(1);
+    expect(component.pagedItems().length).toBe(1);
   });
 
   it('shows an error message when the history request fails', () => {

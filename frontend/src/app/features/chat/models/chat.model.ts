@@ -48,4 +48,4 @@ export interface ChatResponse {
 export type ChatMessage =
   | { kind: 'user'; id: string; text: string; timestamp: Date }
   | { kind: 'assistant'; id: string; response: ChatResponse; timestamp: Date }
-  | { kind: 'error'; id: string; message: string; retryText: string; timestamp: Date };
+  | { kind: 'error'; id: string; message: string; retryText: string; restoreId?: string; timestamp: Date };

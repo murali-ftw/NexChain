@@ -12,7 +12,7 @@ NO_EVIDENCE_ANSWER = (
     "I cannot find supporting policy for this question in the knowledge base."
 )
 
-_SYSTEM_INSTRUCTIONS = """You are the Knowledge Base Agent for a supply chain co-pilot.
+_SYSTEM_INSTRUCTIONS = """You are the Knowledge Base Agent for NexChain.
 Answer the question using ONLY the policy context provided below.
 
 Rules:

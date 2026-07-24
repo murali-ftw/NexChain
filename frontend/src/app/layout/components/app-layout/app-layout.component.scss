@@ -1,7 +1,11 @@
+// Shell — the sidebar and canvas float over the ambient mesh (body background),
+// so the layout supplies the gutter that lets both read as detached panels.
 .app-layout {
   display: flex;
+  gap: var(--space-md);
   height: 100vh;
   width: 100%;
+  padding: var(--space-md);
 }
 
 .app-layout__content {
@@ -15,5 +19,7 @@
     flex-direction: column;
     height: auto;
     min-height: 100vh;
+    gap: var(--space-sm);
+    padding: var(--space-sm);
   }
 }

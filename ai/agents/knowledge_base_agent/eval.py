@@ -1,6 +1,6 @@
 """P3.4 completion-gate evaluation.
 
-Runs the curated question set (test_questions.py) through the
+Runs the curated question set (eval_questions.py) through the
 Knowledge Base Agent and reports, per question: the answer, the cited
 sources, and whether the result counts as a pass (non-empty sources
 that actually match the expected document, and the agent didn't
@@ -23,7 +23,7 @@ from ai.agents.knowledge_base_agent.agent import (
     retrieve_and_assemble,
 )
 from ai.agents.knowledge_base_agent.agent import answer_policy_question
-from ai.agents.knowledge_base_agent.test_questions import TEST_QUESTIONS
+from ai.agents.knowledge_base_agent.eval_questions import TEST_QUESTIONS
 from ai.contracts import Source
 from ai.llm_client import LLMConfigError, LLMProviderError
 

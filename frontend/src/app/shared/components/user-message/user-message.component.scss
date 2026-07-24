@@ -1,23 +1,52 @@
+// User turn — deliberately the inverse of the assistant card: solid dark
+// tactile fill, right-aligned, narrow. Distinct at a glance while scrolling.
 .user-message {
   align-self: flex-end;
-  max-width: 70%;
-  background: var(--color-primary);
-  color: #fff;
-  border-radius: var(--radius-md);
-  padding: 10px 14px;
+  max-width: min(70%, 560px);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-action-primary-dark);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-card);
+  border-bottom-right-radius: var(--radius-chip);
+  color: var(--color-text-on-dark);
+  box-shadow: var(--shadow-solid-dark);
+  animation: user-message-in 260ms var(--ease-spring) both;
+}
+
+@keyframes user-message-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .user-message__text {
-  font-size: 13.5px;
-  line-height: 1.5;
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .user-message__timestamp {
   display: block;
-  margin-top: 4px;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.75);
+  margin-top: var(--space-2xs);
+  font-size: var(--text-caption);
+  color: color-mix(in srgb, var(--color-text-on-dark) 60%, transparent);
   text-align: right;
+}
+
+@media (max-width: 640px) {
+  .user-message {
+    max-width: 85%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .user-message {
+    animation: none;
+  }
 }

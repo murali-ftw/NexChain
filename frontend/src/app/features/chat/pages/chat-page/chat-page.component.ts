@@ -1,5 +1,5 @@
-import { Component, ElementRef, OnInit, ViewChild, signal } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { Component, ElementRef, HostListener, OnInit, ViewChild, signal } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { timer } from 'rxjs';
 import { ChatInputComponent } from '../../../../shared/components/chat-input/chat-input.component';
 import { UserMessageComponent } from '../../../../shared/components/user-message/user-message.component';
@@ -9,6 +9,7 @@ import { ChatApiService } from '../../services/chat-api.service';
 import { HistoryApiService } from '../../../history/services/history-api.service';
 import { DEGRADED_RESPONSE } from '../../data/chat-fixtures';
 import { ChatMessage, ChatResponse } from '../../models/chat.model';
+import { environment } from '../../../../../environments/environment';
 
 @Component({
   selector: 'app-chat-page',
@@ -23,6 +24,18 @@ export class ChatPageComponent implements OnInit {
   readonly loadingText = signal('Thinking...');
   readonly isRestoring = signal(false);
 
+  /** Connectivity banner only — sending is deliberately not gated on this, so
+   * behaviour is unchanged and a stale `offline` reading can never block a user. */
+  readonly isOffline = signal(typeof navigator !== 'undefined' && navigator.onLine === false);
+
+  @HostListener('window:offline') onOffline(): void {
+    this.isOffline.set(true);
+  }
+
+  @HostListener('window:online') onOnline(): void {
+    this.isOffline.set(false);
+  }
+
   @ViewChild('scrollAnchor') private scrollAnchor?: ElementRef<HTMLDivElement>;
 
   /** Groups this conversation's turns for the backend. Starts as a fresh id; ngOnInit
@@ -34,6 +47,7 @@ export class ChatPageComponent implements OnInit {
     private readonly chatApi: ChatApiService,
     private readonly historyApi: HistoryApiService,
     private readonly route: ActivatedRoute,
+    private readonly router: Router,
   ) {}
 
   ngOnInit(): void {
@@ -41,6 +55,10 @@ export class ChatPageComponent implements OnInit {
     if (!restoreId) {
       return;
     }
+    this.restoreConversation(restoreId);
+  }
+
+  private restoreConversation(restoreId: string): void {
     this.isRestoring.set(true);
     this.historyApi.getHistoryDetail(restoreId).subscribe({
       next: (detail) => {
@@ -61,7 +79,7 @@ export class ChatPageComponent implements OnInit {
         this.isRestoring.set(false);
         const message = err instanceof Error ? err.message : 'That conversation could not be restored.';
         this.messages.set([
-          { kind: 'error', id: crypto.randomUUID(), message, retryText: '', timestamp: new Date() },
+          { kind: 'error', id: crypto.randomUUID(), message, retryText: '', restoreId, timestamp: new Date() },
         ]);
       },
     });
@@ -91,13 +109,15 @@ export class ChatPageComponent implements OnInit {
     // simulate its own failure, and a real "stop the backend" test covers the
     // unavailable-backend case more realistically. Every other query — including every
     // suggested question — goes through the real POST /api/chat round trip below.
-    if (normalized.includes('simulate error')) {
+    // Disabled in production builds (environment.production) so a real end user can
+    // never trigger a fake response by typing these phrases.
+    if (!environment.production && normalized.includes('simulate error')) {
       timer(600).subscribe(() =>
         this.handleError(new Error('Unable to retrieve the response. Please try again.'), trimmed),
       );
       return;
     }
-    if (normalized.includes('simulate degraded')) {
+    if (!environment.production && normalized.includes('simulate degraded')) {
       timer(600).subscribe(() =>
         this.handleSuccess({
           ...DEGRADED_RESPONSE,
@@ -115,7 +135,11 @@ export class ChatPageComponent implements OnInit {
     });
   }
 
-  retry(text: string): void {
+  retry(text: string, restoreId?: string): void {
+    if (restoreId) {
+      this.restoreConversation(restoreId);
+      return;
+    }
     this.onSend(text);
   }
 
@@ -126,6 +150,22 @@ export class ChatPageComponent implements OnInit {
       { kind: 'assistant', id: crypto.randomUUID(), response, timestamp: new Date() },
     ]);
     this.scrollToBottom();
+    this.syncSessionIdToUrl();
+  }
+
+  /** Puts the active sessionId in the URL once a real turn has round-tripped, so a
+   * mid-conversation page refresh restores it via the same query-param path History
+   * links already use, instead of silently dropping the conversation (Day 13 QA). */
+  private syncSessionIdToUrl(): void {
+    if (this.route.snapshot.queryParamMap.get('sessionId') === this.sessionId) {
+      return;
+    }
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { sessionId: this.sessionId },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   private handleError(err: unknown, retryText: string): void {

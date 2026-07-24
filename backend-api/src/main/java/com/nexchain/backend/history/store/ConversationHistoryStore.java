@@ -8,6 +8,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -27,6 +29,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Component
 public class ConversationHistoryStore {
 
+    private static final Logger logger = LoggerFactory.getLogger(ConversationHistoryStore.class);
     private final ConversationHistoryRepository repository;
     private final TransactionTemplate transactionTemplate;
 
@@ -60,9 +63,17 @@ public class ConversationHistoryStore {
         Object lock = sessionLocks.computeIfAbsent(sessionId, id -> new Object());
         synchronized (lock) {
             transactionTemplate.executeWithoutResult(status -> {
+                var existing = repository.findById(sessionId).orElse(null);
+                // Ownership check: reject if session exists but belongs to a different user
+                if (existing != null && !existing.getUserEmail().equals(userEmail)) {
+                    logger.warn(
+                            "conversation history ownership mismatch: user {} attempted write to session {} owned by {}",
+                            userEmail, sessionId, existing.getUserEmail());
+                    return;
+                }
                 var turn = new ConversationTurnDto(question, response, Instant.now());
                 ConversationEntity entity =
-                        repository.findById(sessionId).orElseGet(() -> new ConversationEntity(sessionId, userEmail));
+                        existing != null ? existing : new ConversationEntity(sessionId, userEmail);
                 entity.addTurn(turn);
                 repository.save(entity);
             });

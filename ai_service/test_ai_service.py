@@ -18,6 +18,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from ai_service.main import app
@@ -133,3 +134,37 @@ def test_snake_case_input_is_also_accepted() -> None:
         "/ai/query", json={"query": "anything", "trace_id": "t-1"}
     ).json()
     assert body["traceId"] == "t-1"
+
+
+# --- P2.10 Day 10: error-boundary stabilization -----------------------------
+#
+# The graph that raises these isn't wired in yet (P2.10, Day 11), so the two
+# handlers are exercised directly here — the point of stabilizing the error
+# contract on Day 10 is that it's proven before the graph that trips it lands.
+
+
+@pytest.mark.asyncio
+async def test_tool_error_maps_to_503_with_a_generic_detail() -> None:
+    """A ToolError (the one shape the tool layer normalizes every failure to)
+    becomes a clear 503 'service unavailable' (tech-req §7), and the internal
+    message — which can embed raw psycopg/httpx text — never reaches the client."""
+    from ai_service.main import _tool_error
+    from ai_service.tools.errors import ToolUnavailable
+
+    exc = ToolUnavailable("db_query", "cannot reach the database: password=hunter2")
+    response = await _tool_error(None, exc)  # type: ignore[arg-type]
+    assert response.status_code == 503
+    assert b"hunter2" not in response.body
+    assert response.body == b'{"detail":"AI tool temporarily unavailable"}'
+
+
+@pytest.mark.asyncio
+async def test_unhandled_error_stays_generic_and_does_not_leak() -> None:
+    """docs/api_contracts.md: an unhandled exception is a 500 whose client
+    message stays generic — the exception text is logged, not returned."""
+    from ai_service.main import _unhandled
+
+    response = await _unhandled(None, RuntimeError("boom: secret internal detail"))  # type: ignore[arg-type]
+    assert response.status_code == 500
+    assert b"secret internal detail" not in response.body
+    assert response.body == b'{"detail":"Internal AI service error"}'

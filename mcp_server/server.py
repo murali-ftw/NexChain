@@ -40,6 +40,7 @@ from collections.abc import Callable
 from typing import TypeVar
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from pydantic_core import to_jsonable_python
 
 from ai.agents.text_to_sql_agent.validator import validate_sql
@@ -57,11 +58,29 @@ DEFAULT_PORT = 8002  # 4200 Angular, 8080 Spring Boot, 8000 mock_apis, 8001 ai_s
 # its loopback. MCP_HOST lets a container override it; local/stdio use is
 # unaffected either way, since host only matters for network transports.
 DEFAULT_HOST = "127.0.0.1"
+# DNS-rebinding / session-routing protection (PYSEC-2026-1617, CVE-2026-52869)
+# is off by default in the SDK "for backwards compatibility", so it must be
+# passed explicitly. Host headers are network-topology-dependent — the
+# container's docker-compose service name ("mcp_server:8002") isn't the same
+# string as the local/CI default ("localhost:8002") — so docker-compose.yml
+# overrides MCP_ALLOWED_HOSTS for the containerized deployment.
+_DEFAULT_ALLOWED_HOSTS = f"localhost:{DEFAULT_PORT},127.0.0.1:{DEFAULT_PORT}"
+
+
+def _allowed_hosts() -> list[str]:
+    raw = os.environ.get("MCP_ALLOWED_HOSTS", "").strip() or _DEFAULT_ALLOWED_HOSTS
+    return [host.strip() for host in raw.split(",") if host.strip()]
+
 
 mcp = FastMCP(
     "nexchain-tools",
     host=os.environ.get("MCP_HOST") or DEFAULT_HOST,
     port=int(os.environ.get("MCP_PORT") or DEFAULT_PORT),
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=_allowed_hosts(),
+        allowed_origins=_allowed_hosts(),
+    ),
 )
 
 T = TypeVar("T")

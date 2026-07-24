@@ -4,7 +4,7 @@
 
 Validator passes its adversarial suite **14/14** (parse failures, denied
 keywords, denied tables, missing/over-limit `LIMIT`, multi-statement
-injection). Generation eval (`test_questions.py`, live Gemini run)
+injection). Generation eval (`eval_questions.py`, live Gemini run)
 scores **20/20** — clears the P3.6 gate (`docs/team_plan.md`, >= 15/20)
 comfortably, including the flagship SO-45892 question generating a
 correct `sales_orders` + `customers` + `sla_rules` join on `sla_tier`.
@@ -49,7 +49,7 @@ python -m ai.agents.text_to_sql_agent.eval
 ```
 
 Gate (`docs/team_plan.md` P3.6): **>= 15 of the 20 curated questions**
-(`test_questions.py`) must generate valid, allowlisted SQL touching the
+(`eval_questions.py`) must generate valid, allowlisted SQL touching the
 expected tables. Since there's no live DB yet, this grades generation +
 validation correctness, not query-result correctness. **Live result:
 20/20 passed** (Day 5, `gemini-flash-latest`) — GATE MET.
@@ -81,5 +81,5 @@ nothing in `agent.py`, `validator.py`, or `prompts.py` needed to change.
 | `prompts.py` | Provider-agnostic Text-to-SQL prompt (initial + retry variants) |
 | `db_boundary.py` | Thin boundary over `ai.contracts.db_query` — the live-DB swap point |
 | `agent.py` | Orchestration: prompt -> generate -> validate -> one retry -> `TextToSQLResult` |
-| `test_questions.py` | 20 curated business questions (filters, joins, aggregations, dates/warehouse/delay, flagship) |
+| `eval_questions.py` | 20 curated business questions (filters, joins, aggregations, dates/warehouse/delay, flagship) |
 | `eval.py` | Runs the question set, reports pass/fail against the completion gate |

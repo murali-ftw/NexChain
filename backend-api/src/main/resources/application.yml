@@ -31,6 +31,13 @@ app:
     # Seconds. docs/api_contracts.md's frozen POST /api/auth/login contract
     # already documents expiresIn: 3600 — keep this in sync with that.
     expiration-seconds: 3600
+  demo-users:
+    # InMemoryUserStore seed passwords (docs Known Limitations: this is a demo
+    # user directory, not real user management). Defaults are public in this
+    # repo — override via DEMO_ADMIN_PASSWORD etc. before any non-local deployment.
+    user-password: ${DEMO_USER_PASSWORD:password}
+    second-user-password: ${DEMO_SECOND_USER_PASSWORD:password}
+    admin-password: ${DEMO_ADMIN_PASSWORD:password}
 
 ai:
   service:

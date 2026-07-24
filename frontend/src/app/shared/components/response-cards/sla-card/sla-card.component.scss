@@ -1,29 +1,36 @@
 @use '../response-card-row';
 
+// Matches <app-badge> exactly — radius-chip, caption size, 600 weight,
+// status-tinted fill. The audit table's SLA column and this card render the
+// same field, so they must not read as two different systems. Kept local only
+// because SLA has four states that don't map onto the badge component's four.
 .sla-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-3xs) var(--space-xs);
+  border-radius: var(--radius-chip);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+  font-weight: 600;
+  white-space: nowrap;
 
   &--breached {
-    background: rgba(198, 40, 40, 0.12);
-    color: var(--color-danger);
+    background: var(--color-badge-breached-bg);
+    color: var(--color-badge-breached-text);
   }
 
   &--at-risk {
-    background: rgba(181, 114, 10, 0.14);
-    color: var(--color-warning);
+    background: var(--color-status-warning-bg);
+    color: var(--color-status-warning-strong);
   }
 
   &--on-time {
-    background: rgba(31, 138, 76, 0.12);
-    color: var(--color-success);
+    background: var(--color-status-success-bg);
+    color: var(--color-status-success-strong);
   }
 
   &--na {
-    background: var(--color-border);
-    color: var(--color-text-muted);
+    background: var(--color-badge-na-bg);
+    color: var(--color-badge-na-text);
   }
 }

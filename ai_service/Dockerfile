@@ -20,4 +20,8 @@ ENV PYTHONPATH=/app
 RUN python -m ai.rag.ingest
 
 EXPOSE 8001
+# httpx is already a dependency (requirements.txt) — no extra package needed
+# just to probe the service's own /health endpoint.
+HEALTHCHECK --interval=5s --timeout=3s --start-period=15s --retries=5 \
+    CMD python -c "import httpx; httpx.get('http://localhost:8001/health').raise_for_status()" || exit 1
 CMD ["uvicorn", "ai_service.main:app", "--host", "0.0.0.0", "--port", "8001"]

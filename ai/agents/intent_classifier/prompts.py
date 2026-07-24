@@ -29,7 +29,7 @@ A: MULTI_TOOL_QUERY"""
 
 def build_prompt(query: str) -> str:
     return (
-        "You are the Intent Classifier for a supply chain co-pilot. "
+        "You are the Intent Classifier for NexChain. "
         "Classify the question below into EXACTLY ONE of these four categories.\n\n"
         f"{_CATEGORY_DEFINITIONS}\n\n"
         f"{_FEW_SHOT}\n\n"

@@ -8,7 +8,7 @@ strips markdown fences in case that's ignored.
 
 from __future__ import annotations
 
-_SYSTEM_INSTRUCTIONS = """You are the Text-to-SQL Agent for a supply chain co-pilot.
+_SYSTEM_INSTRUCTIONS = """You are the Text-to-SQL Agent for NexChain.
 Generate a single PostgreSQL SELECT statement that answers the business question, using ONLY the schema below.
 
 Rules:

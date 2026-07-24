@@ -178,7 +178,10 @@ docker exec -i nexchain-postgres psql -U postgres -d nexchain -v ON_ERROR_STOP=1
 
 Open [http://localhost:4200](http://localhost:4200) and log in with the
 seeded demo account (`user@example.com` / `password`, or `admin@example.com`
-/ `password` for audit-log access).
+/ `password` for audit-log access). These three passwords are public in this
+repository (`InMemoryUserStore`) — override them via `DEMO_USER_PASSWORD` /
+`DEMO_SECOND_USER_PASSWORD` / `DEMO_ADMIN_PASSWORD` before exposing this
+service outside local development; see "Known Limitations".
 
 ### Local Development
 
@@ -338,6 +341,21 @@ request-level caching or parallelization across independent sub-agents.
 
 ## Known Limitations
 
+- **`InMemoryUserStore` is a demo user directory, not real user management** —
+  three accounts (`user@example.com`, `second-user@example.com`,
+  `admin@example.com`, all seeded with public default passwords) are the
+  entire user directory; there is no registration, password-change, or
+  persistent-user-record endpoint. Override the seed passwords via
+  `DEMO_USER_PASSWORD` / `DEMO_SECOND_USER_PASSWORD` / `DEMO_ADMIN_PASSWORD`
+  before exposing this service outside local development — the defaults are
+  public in this repository.
+- **backend-api's conversation history / audit log (H2) needs its Docker
+  volume kept** — `infra/docker-compose.yml`'s `backend_data` volume is what
+  makes `/app/data/nexchain-history.*` survive a container recreate; running
+  `docker compose down -v` (or any deployment that doesn't preserve named
+  volumes) discards all chat history and the admin audit trail. This is a
+  separate, backend-api-owned H2 file — not Person 2's shared Postgres
+  `nexchain` database, which `db/migrations`/`pg_dump` back up independently.
 - **`kb_search` is not exposed as an MCP tool** — `knowledge_base_agent`
   calls the RAG vector store directly instead. Deliberate; see the trailing
   note in `mcp_server/server.py`.
@@ -352,19 +370,25 @@ request-level caching or parallelization across independent sub-agents.
 
 ### Dependency advisories with no fix available
 
-Both confirmed non-exploitable in this codebase; re-checked automatically by
+All confirmed non-exploitable in this codebase; re-checked automatically by
 `pip-audit`/`npm audit` in CI, so a future fix version will surface on the
-next push.
+next push. (RC stabilization: `fast-uri`'s `GHSA-v2hh-gcrm-f6hx`, previously
+listed here as high-severity, was resolved via a plain `npm audit fix` —
+patch-level bump of a transitive devDependency, no breaking change.)
 
-- **`npm audit` (frontend), 5 moderate** — `uuid`'s
-  [`GHSA-w5hq-g745-h8pq`](https://github.com/advisories/GHSA-w5hq-g745-h8pq)
-  (missing buffer bounds check), transitive via `@angular-devkit/build-angular`
-  → `webpack-dev-server` → `sockjs` → `uuid`. Verified: `npm ls uuid` shows
-  this path only under devDependency build tooling, and none of
-  `uuid`/`sockjs`/`webpack-dev-server` appear anywhere in
-  `dist/frontend/browser/*.js` — never reaches the shipped app, only
-  `ng serve`'s local dev server. `npm audit fix` itself reports "No fix
-  available."
+- **`npm audit` (frontend), 7 moderate, all devDependency-only build/CLI
+  tooling** — verified none of the packages below appear anywhere in
+  `dist/frontend/browser/*.js`; none are reachable by a user of the shipped app:
+  - `uuid`'s [`GHSA-w5hq-g745-h8pq`](https://github.com/advisories/GHSA-w5hq-g745-h8pq)
+    (missing buffer bounds check), transitive via
+    `@angular-devkit/build-angular` → `webpack-dev-server` → `sockjs` → `uuid`
+    — only reachable through `ng serve`'s local dev server. No fix available yet.
+  - `@hono/node-server`'s [`GHSA-frvp-7c67-39w9`](https://github.com/advisories/GHSA-frvp-7c67-39w9)
+    (path traversal in `serve-static`, Windows-only), transitive via
+    `@angular/cli` → `@modelcontextprotocol/sdk` → `@hono/node-server` — the
+    Angular CLI's own MCP tooling dependency, never invoked by this repo's
+    build/test/serve scripts. Fix requires `npm audit fix --force`
+    (`@angular/cli@21.0.4`, a downgrade) — deferred pending a compatible patch.
 - **`pip-audit` (Python)** — `chromadb` 1.5.9 (the latest available release)
   has `CVE-2026-45829`, a pre-auth code-injection in ChromaDB's own HTTP
   server, reachable only via `trust_remote_code=true` on its collections

@@ -1,6 +1,6 @@
 """P3.5/P3.6 completion-gate evaluation.
 
-Runs the curated question set (test_questions.py) through the
+Runs the curated question set (eval_questions.py) through the
 Text-to-SQL Agent and reports, per question: the generated SQL and
 whether the result counts as a pass (validator PASS + the expected
 tables were touched). There is no live DB (Person 2's MCP `db_query`
@@ -27,7 +27,7 @@ import time
 from collections import defaultdict
 
 from ai.agents.text_to_sql_agent.agent import TextToSQLResult, generate_sql
-from ai.agents.text_to_sql_agent.test_questions import (
+from ai.agents.text_to_sql_agent.eval_questions import (
     GATE_BASELINE_COUNT,
     GATE_THRESHOLD,
     TEST_QUESTIONS,

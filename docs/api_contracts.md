@@ -32,7 +32,7 @@ full deterministic mock-routing table and verification notes.
 
 ### `POST /api/auth/login`
 
-- **Purpose:** eventually authenticate users and issue JWT tokens.
+- **Purpose:** authenticate users and issue JWT tokens.
 - **Request:**
   ```json
   { "email": "user@example.com", "password": "password" }
@@ -41,15 +41,15 @@ full deterministic mock-routing table and verification notes.
 - **Success response (200):**
   ```json
   {
-    "accessToken": "mock-token",
-    "refreshToken": null,
+    "accessToken": "<real signed HS512 JWT>",
+    "refreshToken": "<refresh token>",
     "tokenType": "Bearer",
     "expiresIn": 3600,
     "user": { "id": 1, "username": "demo-user", "email": "user@example.com", "role": "USER" }
   }
   ```
 - **Validation error (400):** see [Error Response Shape](#error-response-shape) below.
-- **Day 2 status:** **Contract stub.** `accessToken` is a fixed literal string, not a real JWT. No password hashing, no user store, no Spring Security. Real implementation is P1.6 (Day 6).
+- **Status:** live since P1.6 (Day 6) — `accessToken` is a real signed JWT (Spring Security), not a literal string.
 - **Owner:** Person 1. No cross-team dependency.
 
 ------------------------------------------------------------------------

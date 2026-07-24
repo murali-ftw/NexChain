@@ -85,7 +85,11 @@ def run_select(sql: str, params: tuple | None = None) -> list[dict]:
     # ponytail: a connection per call, same as mock_apis/db.py. A pool is worth
     # it once the graph fans out several tool calls per question; it isn't yet.
     """
-    logger.info("tool=%s sql=%s", TOOL, sql)
+    # DEBUG, not INFO: sql is validated/allowlisted but can still carry literal values
+    # (customer names, emails) pulled from the user's question — INFO is the default
+    # level everywhere in this stack, so logging it there would put PII in container
+    # stdout by default (Day 13 QA: sensitive-logging finding).
+    logger.debug("tool=%s sql=%s", TOOL, sql)
     try:
         with (
             psycopg.connect(

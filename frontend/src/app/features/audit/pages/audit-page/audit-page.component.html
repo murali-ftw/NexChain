@@ -1,43 +1,98 @@
-<div class="audit-page">
-  <header class="audit-page__header">
-    <h1>Audit Log</h1>
-    <button type="button" class="audit-page__refresh" (click)="refresh()" [disabled]="isLoading()">Refresh</button>
+<section class="audit panel">
+  <!-- ── Header: identity, live result count, refresh ───────────────────── -->
+  <header class="audit__header">
+    <div>
+      <h1 class="audit__title">Audit Log</h1>
+      <p class="audit__subtitle" aria-live="polite">
+        @if (isLoading()) {
+          Loading audit records…
+        } @else if (errorMessage()) {
+          Audit log unavailable
+        } @else if (entries().length === 0) {
+          No records yet
+        } @else {
+          {{ filteredEntries().length }} of {{ entries().length }}
+          {{ entries().length === 1 ? 'record' : 'records' }}
+          @if (hasActiveFilters()) {
+            <span class="audit__subtitle-flag">· filtered</span>
+          }
+        }
+      </p>
+    </div>
+
+    <button
+      type="button"
+      class="ghost-btn"
+      (click)="refresh()"
+      [disabled]="isLoading()"
+      aria-label="Refresh audit log"
+    >
+      <svg class="ghost-btn__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M20 11a8 8 0 1 0-.6 4M20 5v6h-6"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+      Refresh
+    </button>
   </header>
 
-  <div class="audit-page__search">
-    <input
-      type="text"
-      placeholder="Search by question, user, or trace ID..."
-      aria-label="Search by question, user, or trace ID"
-      [ngModel]="searchTerm()"
-      (ngModelChange)="searchTerm.set($event)"
-    />
-  </div>
+  <!-- ── Toolbar: search + user / date / intent filters ──────────────────── -->
+  <div class="audit__toolbar">
+    <div class="search">
+      <svg class="search__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.8" />
+        <path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+      </svg>
+      <input
+        class="glass-input search__input"
+        type="search"
+        placeholder="Search by question, user, or trace ID…"
+        aria-label="Search by question, user, or trace ID"
+        autocomplete="off"
+        [ngModel]="searchTerm()"
+        (ngModelChange)="searchTerm.set($event)"
+      />
+      @if (searchTerm()) {
+        <button type="button" class="search__clear" (click)="searchTerm.set('')" aria-label="Clear search">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m7 7 10 10M17 7 7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+        </button>
+      }
+    </div>
 
-  <div class="audit-page__filters">
     <input
-      class="audit-page__filter"
+      class="glass-input audit__filter"
       type="text"
-      placeholder="Filter by user..."
+      placeholder="Filter by user…"
       aria-label="Filter by user"
       [ngModel]="userFilter()"
       (ngModelChange)="userFilter.set($event)"
     />
     <input
-      class="audit-page__filter"
+      class="glass-input audit__filter audit__filter--date"
       type="date"
       aria-label="From date"
       [ngModel]="dateFrom()"
       (ngModelChange)="dateFrom.set($event)"
     />
     <input
-      class="audit-page__filter"
+      class="glass-input audit__filter audit__filter--date"
       type="date"
       aria-label="To date"
       [ngModel]="dateTo()"
       (ngModelChange)="dateTo.set($event)"
     />
-    <select class="audit-page__filter" [ngModel]="intentFilter()" (ngModelChange)="intentFilter.set($event)">
+    <select
+      class="glass-input audit__filter"
+      aria-label="Filter by intent"
+      [ngModel]="intentFilter()"
+      (ngModelChange)="intentFilter.set($event)"
+    >
       <option value="">All intents</option>
       @for (intent of availableIntents(); track intent) {
         <option [value]="intent">{{ intent }}</option>
@@ -45,133 +100,257 @@
     </select>
   </div>
 
-  <table class="audit-table">
-    <thead>
-      <tr>
-        @for (column of columns; track column) {
-          <th>{{ column }}</th>
-        }
-      </tr>
-    </thead>
-    <tbody>
-      @if (isLoading()) {
-        <tr>
-          <td class="audit-table__empty" [attr.colspan]="columns.length">Loading audit log...</td>
-        </tr>
-      } @else if (errorMessage()) {
-        <tr>
-          <td class="audit-table__empty" [attr.colspan]="columns.length">{{ errorMessage() }}</td>
-        </tr>
-      } @else if (entries().length === 0) {
-        <tr>
-          <td class="audit-table__empty" [attr.colspan]="columns.length">
-            No audit records yet — entries will appear here once queries are logged.
-          </td>
-        </tr>
-      } @else if (filteredEntries().length === 0) {
-        <tr>
-          <td class="audit-table__empty" [attr.colspan]="columns.length">No audit entries match your search/filters.</td>
-        </tr>
-      } @else {
-        @for (entry of filteredEntries(); track entry.auditId) {
-          <tr class="audit-table__row" (click)="openDetail(entry)">
-            <td>{{ entry.timestamp | date: 'medium' }}</td>
-            <td>{{ entry.user }}</td>
-            <td>{{ entry.rawQuestion }}</td>
-            <td>{{ entry.detectedIntent.join(', ') }}</td>
-            <td>{{ entry.agentsInvoked.join(', ') || '—' }}</td>
-            <td>{{ entry.slaResult }}</td>
-          </tr>
-        }
-      }
-    </tbody>
-  </table>
+  <!-- ── Body ─────────────────────────────────────────────────────────────── -->
+  <div class="audit__body">
+    @if (errorMessage()) {
+      <div class="notice notice--error" role="alert">
+        <svg class="notice__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+          <path d="M12 7.5v5.5M12 16.2v.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+        <p>{{ errorMessage() }}</p>
+        <button type="button" class="notice__action" (click)="refresh()">Try again</button>
+      </div>
+    } @else if (isLoading()) {
+      <!-- Shimmer rows in the real table geometry (§7F) — a skeleton that
+           matches the layout it replaces reads as loading, not as breakage. -->
+      <app-table>
+        <table>
+          <thead>
+            <tr>
+              @for (column of columns; track column) {
+                <th>{{ column }}</th>
+              }
+            </tr>
+          </thead>
+          <tbody aria-busy="true">
+            @for (row of skeletonRows; track row) {
+              <tr>
+                @for (column of columns; track column) {
+                  <td><app-skeleton variant="text" height="12px"></app-skeleton></td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </app-table>
+    } @else if (entries().length === 0) {
+      <div class="empty">
+        <div class="empty__art" aria-hidden="true">
+          <div class="orb orb--quiet"></div>
+          <svg class="empty__glyph" viewBox="0 0 74 60" fill="none" aria-hidden="true">
+            <rect x="9" y="8" width="56" height="44" rx="7" stroke="currentColor" stroke-width="2.4" />
+            <path d="M9 21h56" stroke="currentColor" stroke-width="2.4" opacity="0.7" />
+            <path
+              d="M19 31h20M19 40h32"
+              stroke="currentColor"
+              stroke-width="2.4"
+              stroke-linecap="round"
+              opacity="0.48"
+            />
+          </svg>
+        </div>
+        <h2 class="empty__title">Nothing logged yet</h2>
+        <p class="empty__text">
+          Every question answered by the co-pilot is recorded here — the intent detected, the agents invoked,
+          the SQL generated and the SLA outcome. Ask something on the Chat page and the first entry will appear.
+        </p>
+      </div>
+    } @else if (filteredEntries().length === 0) {
+      <div class="empty">
+        <div class="empty__art" aria-hidden="true">
+          <div class="orb orb--quiet"></div>
+          <svg class="empty__glyph" viewBox="0 0 74 60" fill="none" aria-hidden="true">
+            <circle cx="32" cy="26" r="15" stroke="currentColor" stroke-width="2.6" />
+            <path d="m43 37 12 12" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" opacity="0.75" />
+          </svg>
+        </div>
+        <h2 class="empty__title">No matching records</h2>
+        <p class="empty__text">No audit entries match your current search and filters.</p>
+        <button type="button" class="ghost-btn" (click)="clearFilters()">Clear all filters</button>
+      </div>
+    } @else {
+      <app-table>
+        <table>
+          <thead>
+            <tr>
+              @for (column of columns; track column) {
+                <th>{{ column }}</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (entry of filteredEntries(); track entry.auditId) {
+              <tr
+                class="audit__row"
+                tabindex="0"
+                role="button"
+                [attr.aria-label]="'Open audit entry ' + entry.auditId"
+                (click)="openDetail(entry)"
+                (keydown.enter)="openDetail(entry)"
+                (keydown.space)="openDetail(entry)"
+              >
+                <td class="audit__cell--time">{{ entry.timestamp | date: 'MMM d, y · HH:mm' }}</td>
+                <td class="audit__cell--user">{{ entry.user }}</td>
+                <td class="audit__cell--question">{{ entry.rawQuestion }}</td>
+                <td>
+                  <span class="audit__tags">
+                    @for (intent of entry.detectedIntent; track intent) {
+                      <span class="audit__tag">{{ intent }}</span>
+                    }
+                  </span>
+                </td>
+                <td class="audit__cell--agents">{{ entry.agentsInvoked.join(', ') || '—' }}</td>
+                <td>
+                  <app-badge [status]="slaBadgeStatus(entry.slaResult)">{{ entry.slaResult }}</app-badge>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </app-table>
+    }
+  </div>
+</section>
 
+<!-- ── Detail dialog ──────────────────────────────────────────────────────
+     Native <dialog> via <app-modal>, replacing the hand-rolled overlay: ESC
+     to close, focus trapping and top-layer stacking come for free, and the
+     delete-confirm dialog on History already uses it. -->
+<app-modal
+  [open]="selectedEntry() !== null"
+  [titleText]="selectedEntry() ? 'Audit Entry #' + selectedEntry()!.auditId : ''"
+  (closed)="closeDetail()"
+>
   @if (selectedEntry(); as entry) {
-    <div class="audit-drawer__backdrop" (click)="closeDetail()">
-      <aside class="audit-drawer" (click)="$event.stopPropagation()">
-        <header class="audit-drawer__header">
-          <h2>Audit Entry #{{ entry.auditId }}</h2>
-          <button type="button" class="audit-drawer__close" (click)="closeDetail()" aria-label="Close">&times;</button>
-        </header>
+    @if (isDetailLoading()) {
+      <div class="audit-detail__loading" aria-busy="true">
+        @for (row of skeletonRows; track row) {
+          <div class="audit-detail__loading-row">
+            <app-skeleton variant="text" width="30%" height="10px"></app-skeleton>
+            <app-skeleton variant="text" height="14px"></app-skeleton>
+          </div>
+        }
+      </div>
+    } @else if (detailError()) {
+      <div class="notice notice--error" role="alert">
+        <svg class="notice__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+          <path d="M12 7.5v5.5M12 16.2v.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+        <p>{{ detailError() }}</p>
+      </div>
+    } @else {
+      <dl class="audit-detail">
+        <div class="card-row">
+          <dt>Timestamp</dt>
+          <dd>{{ entry.timestamp | date: 'medium' }}</dd>
+        </div>
+        <div class="card-row">
+          <dt>User</dt>
+          <dd>{{ entry.user }}</dd>
+        </div>
+        <div class="card-row">
+          <dt>Status</dt>
+          <dd>{{ entry.status }}</dd>
+        </div>
+        <div class="card-row">
+          <dt>SLA result</dt>
+          <dd><app-badge [status]="slaBadgeStatus(entry.slaResult)">{{ entry.slaResult }}</app-badge></dd>
+        </div>
+        <div class="card-row audit-detail__wide">
+          <dt>Question</dt>
+          <dd>{{ entry.rawQuestion }}</dd>
+        </div>
+        <div class="card-row">
+          <dt>Session ID</dt>
+          <dd class="audit-detail__mono">{{ entry.sessionId }}</dd>
+        </div>
+        <div class="card-row">
+          <dt>Trace ID</dt>
+          <dd class="audit-detail__mono">{{ entry.traceId }}</dd>
+        </div>
+        <div class="card-row audit-detail__wide">
+          <dt>Intent</dt>
+          <dd>
+            @if (entry.detectedIntent.length === 0) {
+              —
+            } @else {
+              <span class="audit__tags">
+                @for (intent of entry.detectedIntent; track intent) {
+                  <span class="audit__tag">{{ intent }}</span>
+                }
+              </span>
+            }
+          </dd>
+        </div>
+        <div class="card-row audit-detail__wide">
+          <dt>Agents invoked</dt>
+          <dd>
+            @if (entry.agentsInvoked.length === 0) {
+              —
+            } @else {
+              <span class="audit__tags">
+                @for (agent of entry.agentsInvoked; track agent) {
+                  <span class="audit__tag">{{ agent }}</span>
+                }
+              </span>
+            }
+          </dd>
+        </div>
 
-        @if (isDetailLoading()) {
-          <p class="audit-drawer__loading">Loading full entry...</p>
-        } @else if (detailError()) {
-          <p class="audit-drawer__error">{{ detailError() }}</p>
-        } @else {
-          <dl class="audit-drawer__fields">
-            <dt>Timestamp</dt>
-            <dd>{{ entry.timestamp | date: 'medium' }}</dd>
-
-            <dt>User</dt>
-            <dd>{{ entry.user }}</dd>
-
-            <dt>Session ID</dt>
-            <dd>{{ entry.sessionId }}</dd>
-
-            <dt>Trace ID</dt>
-            <dd>{{ entry.traceId }}</dd>
-
-            <dt>Question</dt>
-            <dd>{{ entry.rawQuestion }}</dd>
-
-            <dt>Intent</dt>
-            <dd>{{ entry.detectedIntent.join(', ') || '—' }}</dd>
-
-            <dt>Status</dt>
-            <dd>{{ entry.status }}</dd>
-
-            <dt>SLA Result</dt>
-            <dd>{{ entry.slaResult }}</dd>
-
-            <dt>Agents Invoked</dt>
-            <dd>{{ entry.agentsInvoked.join(', ') || '—' }}</dd>
-
+        @if (entry.generatedSql) {
+          <div class="card-row audit-detail__wide">
             <dt>Generated SQL</dt>
-            <dd>{{ entry.generatedSql || '—' }}</dd>
+            <dd><pre class="audit-detail__code">{{ entry.generatedSql }}</pre></dd>
+          </div>
+        }
 
-            <dt>API Calls</dt>
+        @if (entry.apiCalls.length > 0) {
+          <div class="card-row audit-detail__wide">
+            <dt>API calls</dt>
             <dd>
-              @if (entry.apiCalls.length === 0) {
-                —
-              } @else {
-                <ul>
-                  @for (call of entry.apiCalls; track call.endpoint) {
-                    <li>{{ call.endpoint }} — {{ call.statusCode }} ({{ call.latencyMs }}ms)</li>
-                  }
-                </ul>
-              }
+              <ul class="audit-detail__list">
+                @for (call of entry.apiCalls; track call.endpoint) {
+                  <li class="audit-detail__call">
+                    <span class="audit-detail__mono">{{ call.endpoint }}</span>
+                    <app-badge [status]="call.statusCode < 400 ? 'success' : 'danger'">
+                      {{ call.statusCode }}
+                    </app-badge>
+                    <span class="audit-detail__latency">{{ call.latencyMs }}ms</span>
+                  </li>
+                }
+              </ul>
             </dd>
+          </div>
+        }
 
-            <dt>KB Sources</dt>
+        @if (entry.kbSources.length > 0) {
+          <div class="card-row audit-detail__wide">
+            <dt>KB sources</dt>
             <dd>
-              @if (entry.kbSources.length === 0) {
-                —
-              } @else {
-                <ul>
-                  @for (source of entry.kbSources; track source.documentName) {
-                    <li>{{ source.documentName }}</li>
-                  }
-                </ul>
-              }
+              <span class="audit__tags">
+                @for (source of entry.kbSources; track source.documentName) {
+                  <span class="audit__tag">{{ source.documentName }}</span>
+                }
+              </span>
             </dd>
+          </div>
+        }
 
+        @if (entry.warnings.length > 0) {
+          <div class="card-row audit-detail__wide">
             <dt>Warnings</dt>
             <dd>
-              @if (entry.warnings.length === 0) {
-                —
-              } @else {
-                <ul>
-                  @for (warning of entry.warnings; track warning) {
-                    <li>{{ warning }}</li>
-                  }
-                </ul>
-              }
+              <ul class="audit-detail__warnings">
+                @for (warning of entry.warnings; track warning) {
+                  <li>{{ warning }}</li>
+                }
+              </ul>
             </dd>
-          </dl>
+          </div>
         }
-      </aside>
-    </div>
+      </dl>
+    }
   }
-</div>
+</app-modal>

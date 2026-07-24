@@ -16,4 +16,8 @@ FROM eclipse-temurin:25-jre
 WORKDIR /app
 COPY --from=build /app/target/backend-api-*.jar app.jar
 EXPOSE 8080
+# No actuator/curl/wget in this minimal JRE image — a bash /dev/tcp probe
+# confirms Spring Boot has bound the port and is accepting connections.
+HEALTHCHECK --interval=5s --timeout=3s --start-period=30s --retries=5 \
+    CMD bash -c 'exec 3<>/dev/tcp/localhost/8080' || exit 1
 ENTRYPOINT ["java", "-jar", "app.jar"]

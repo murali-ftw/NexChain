@@ -23,4 +23,9 @@ ENV MCP_TRANSPORT=streamable-http
 # loopback (see server.py's MCP_HOST comment).
 ENV MCP_HOST=0.0.0.0
 EXPOSE 8002
+# No /health route (FastMCP only serves /mcp, which 406s on a bare GET since it
+# expects the MCP protocol handshake) — a response at all, even non-2xx, proves
+# the server is up and accepting connections, which is all this checks for.
+HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=5 \
+    CMD python -c "import httpx; httpx.get('http://localhost:8002/mcp')" || exit 1
 CMD ["python", "-m", "mcp_server.server"]

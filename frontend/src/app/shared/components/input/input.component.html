@@ -1,0 +1,15 @@
+<div class="field">
+  @if (label) {
+    <label class="field__label" [for]="inputId">{{ label }}</label>
+  }
+  <input
+    class="field__input"
+    [id]="inputId"
+    [type]="type"
+    [placeholder]="placeholder"
+    [value]="value"
+    [disabled]="disabled"
+    [attr.aria-label]="label ? null : (ariaLabel ?? null)"
+    (input)="onInput($event)"
+  />
+</div>

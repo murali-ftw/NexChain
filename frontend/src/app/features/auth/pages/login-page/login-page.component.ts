@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
 
 @Component({
@@ -16,10 +16,12 @@ export class LoginPageComponent {
 
   readonly submitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly showPassword = signal(false);
 
   constructor(
     private readonly authService: AuthService,
     private readonly router: Router,
+    private readonly route: ActivatedRoute,
   ) {}
 
   onSignIn(): void {
@@ -32,7 +34,8 @@ export class LoginPageComponent {
     this.authService.login(this.email.trim(), this.password).subscribe({
       next: () => {
         this.submitting.set(false);
-        this.router.navigate(['/chat']);
+        const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+        this.router.navigateByUrl(returnUrl || '/chat');
       },
       error: (err: Error) => {
         this.submitting.set(false);

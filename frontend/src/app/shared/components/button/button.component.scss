@@ -1,0 +1,8 @@
+/* The .btn / .btn--primary / .btn--secondary / .btn--tactile rules this
+   component's template emits now live globally in src/styles.scss, in the
+   shared components layer — pages need the same button hierarchy on plain
+   <button> elements (empty-state CTAs, dialog confirmations, the login submit)
+   and cannot borrow encapsulated component styles.
+
+   Deliberately left empty rather than deleted: `styleUrl` still points here, and
+   this note is what stops the next person re-adding a divergent copy. */

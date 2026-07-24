@@ -1,14 +1,20 @@
 <div class="suggested">
-  <h2 class="suggested__title">Suggested Questions</h2>
+  <header class="suggested__head">
+    <h2 class="suggested__title">Suggested Questions</h2>
+    <p class="suggested__lede">Start from a common supply-chain task.</p>
+  </header>
 
   @for (group of groups; track group.category) {
-    <div class="suggested__group">
+    <section class="suggested__group">
       <h3 class="suggested__category">{{ group.category }}</h3>
       @for (question of group.questions; track question) {
         <button type="button" class="suggested__item" (click)="select(question)">
-          {{ question }}
+          <span class="suggested__item-text">{{ question }}</span>
+          <svg class="suggested__item-arrow" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M3.5 8h9M9 4.5 12.5 8 9 11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
         </button>
       }
-    </div>
+    </section>
   }
 </div>

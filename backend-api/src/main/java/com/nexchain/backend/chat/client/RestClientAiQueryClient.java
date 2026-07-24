@@ -68,11 +68,13 @@ public class RestClientAiQueryClient implements AiQueryClient {
         } catch (ResourceAccessException ex) {
             // Connection refused, DNS failure, or a read that exceeded readTimeoutMs
             // (AiServiceProperties) — the service is down, unreachable, or too slow.
+            // ex.getMessage() (internal hostnames/ports) is logged, not returned to the
+            // client — the warnings field is user-facing (Day 13 QA hardening).
             log.warn("ai_service traceId={} unreachable/timed out: {}", traceId, ex.getMessage());
-            return degraded("AI service is unreachable or timed out: " + ex.getMessage());
+            return degraded("AI service is unreachable or timed out.");
         } catch (Exception ex) {
             log.error("ai_service traceId={} unexpected failure", traceId, ex);
-            return degraded("AI service call failed: " + ex.getMessage());
+            return degraded("AI service call failed.");
         }
     }
 

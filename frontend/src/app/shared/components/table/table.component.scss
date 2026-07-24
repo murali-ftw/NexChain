@@ -1,0 +1,57 @@
+/* ViewEncapsulation.None + host class app-table: rules here are global but
+   scoped by the .app-table ancestor selector, so they only ever match
+   markup projected inside this component. */
+.app-table {
+  display: block;
+  border-radius: var(--radius-card);
+  background: var(--color-glass-card);
+  border: 1px solid var(--color-border-glass-light);
+  backdrop-filter: blur(var(--blur-md));
+  box-shadow: var(--shadow-glass-panel);
+  overflow: hidden;
+}
+
+.app-table__scroll {
+  overflow-x: auto;
+}
+
+.app-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-body);
+}
+
+.app-table thead {
+  background: var(--color-glass-header);
+}
+
+.app-table th {
+  padding: var(--space-sm) var(--space-md);
+  text-align: left;
+  font-size: var(--text-overline);
+  line-height: var(--text-overline--line-height);
+  font-weight: var(--text-overline--font-weight);
+  letter-spacing: var(--tracking-overline);
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.app-table td {
+  padding: var(--space-sm) var(--space-md);
+  vertical-align: top;
+  color: var(--color-text-primary);
+}
+
+.app-table tbody tr {
+  border-bottom: 1px solid var(--color-border-glass-subtle);
+  transition: background var(--duration-press) var(--ease-spring);
+}
+
+.app-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.app-table tbody tr:hover {
+  background: var(--color-glass-hover);
+}

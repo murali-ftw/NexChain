@@ -1,8 +1,29 @@
 <article class="response" role="article" aria-label="Assistant response">
   <header class="response__header">
     <span class="response__avatar" aria-hidden="true">AI</span>
-    <div class="response__headline" [innerHTML]="response.answerText | markdownLite"></div>
+    <span class="response__author">Co-Pilot</span>
+    <button
+      class="response__copy"
+      type="button"
+      [attr.aria-label]="'Copy response'"
+      (click)="copy('answer', response.answerText)"
+    >
+      @if (copiedKey() === 'answer') {
+        <svg class="response__copy-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M3.5 8.5 6.5 11.5l6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        Copied
+      } @else {
+        <svg class="response__copy-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <rect x="5.75" y="5.75" width="7.5" height="7.5" rx="1.5" stroke="currentColor" stroke-width="1.4" />
+          <path d="M10.25 3.75a1.5 1.5 0 0 0-1.5-1.5h-4a2.5 2.5 0 0 0-2.5 2.5v4a1.5 1.5 0 0 0 1.5 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+        </svg>
+        Copy
+      }
+    </button>
   </header>
+
+  <div class="response__headline" [innerHTML]="response.answerText | markdownLite"></div>
 
   @if (hasCardContent()) {
     <dl class="response__cards">
@@ -18,6 +39,29 @@
   }
 
   <app-recommendations-card [actions]="response.recommendedActions" />
+
+  <!-- Generated SQL — already on the wire contract, surfaced here as a code block -->
+  @if (response.generatedSql) {
+    <details class="response__sql">
+      <summary class="response__sql-summary">
+        <svg class="response__sql-caret" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="m4.5 3 3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        Generated SQL
+      </summary>
+      <div class="response__sql-body">
+        <pre class="response__code"><code>{{ response.generatedSql }}</code></pre>
+        <button
+          class="response__copy response__copy--sql"
+          type="button"
+          aria-label="Copy generated SQL"
+          (click)="copy('sql', response.generatedSql)"
+        >
+          {{ copiedKey() === 'sql' ? 'Copied' : 'Copy' }}
+        </button>
+      </div>
+    </details>
+  }
 
   <footer class="response__footer">
     <app-sources-card [intent]="response.intent" [sources]="response.sources" />

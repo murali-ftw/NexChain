@@ -1,38 +1,323 @@
-<div class="history-page">
-  <header class="history-page__header">
-    <h1>Query History</h1>
-    <input
-      class="history-page__search"
-      type="text"
-      placeholder="Search past queries..."
-      [ngModel]="searchTerm()"
-      (ngModelChange)="onSearchTermChange($event)"
-    />
+<section class="history panel">
+  <!-- ── Header: identity, live result count, refresh ───────────────────── -->
+  <header class="history__header">
+    <div class="history__identity">
+      <h1 class="history__title">Query History</h1>
+      <p class="history__subtitle" aria-live="polite">
+        @if (isLoading()) {
+          Loading your conversations…
+        } @else if (errorMessage()) {
+          History unavailable
+        } @else if (items().length === 0) {
+          No conversations yet
+        } @else {
+          {{ filteredItems().length }} of {{ items().length }}
+          {{ items().length === 1 ? 'conversation' : 'conversations' }}
+          @if (hasActiveFilters()) {
+            <span class="history__subtitle-flag">· filtered</span>
+          }
+        }
+      </p>
+    </div>
+
+    <button
+      type="button"
+      class="ghost-btn"
+      (click)="refresh()"
+      [disabled]="isLoading()"
+      aria-label="Refresh query history"
+    >
+      <svg class="ghost-btn__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M20 11a8 8 0 1 0-.6 4M20 5v6h-6"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+      Refresh
+    </button>
   </header>
 
-  @if (isLoading()) {
-    <p class="history-page__empty">Loading query history...</p>
-  } @else if (errorMessage()) {
-    <p class="history-page__empty">{{ errorMessage() }}</p>
-  } @else if (items().length === 0) {
-    <p class="history-page__empty">You haven't asked anything yet.</p>
-  } @else if (filteredItems().length === 0) {
-    <p class="history-page__empty">No conversations match "{{ searchTerm() }}".</p>
-  } @else {
-    <ul class="history-page__list">
-      @for (item of filteredItems(); track item.id) {
-        <li class="history-item">
-          <div class="history-item__body" (click)="restore(item)">
-            <div class="history-item__question">{{ item.question }}</div>
-            <div class="history-item__summary">{{ item.answerSummary }}</div>
-            <div class="history-item__timestamp">{{ item.timestamp | date: 'medium' }}</div>
-          </div>
-          <div class="history-item__actions">
-            <button type="button" class="history-item__restore" (click)="restore(item)">Restore</button>
-            <button type="button" class="history-item__delete" (click)="remove(item)">Delete</button>
-          </div>
-        </li>
+  <!-- ── Toolbar: search + time range + sort ─────────────────────────────── -->
+  <div class="history__toolbar">
+    <div class="search">
+      <svg class="search__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.8" />
+        <path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+      </svg>
+      <input
+        id="history-search"
+        class="glass-input search__input"
+        type="search"
+        placeholder="Search questions and answers…"
+        aria-label="Search past queries"
+        autocomplete="off"
+        [ngModel]="searchTerm()"
+        (ngModelChange)="onSearchTermChange($event)"
+      />
+      @if (searchTerm()) {
+        <button type="button" class="search__clear" (click)="onSearchTermChange('')" aria-label="Clear search">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m7 7 10 10M17 7 7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+        </button>
       }
-    </ul>
+    </div>
+
+    <div class="segmented" role="group" aria-label="Filter by time range">
+      @for (option of ranges; track option.id) {
+        <button
+          type="button"
+          class="segmented__option"
+          [class.is-active]="range() === option.id"
+          [attr.aria-pressed]="range() === option.id"
+          (click)="setRange(option.id)"
+        >
+          {{ option.label }}
+        </button>
+      }
+    </div>
+
+    <button
+      type="button"
+      class="ghost-btn"
+      (click)="toggleSort()"
+      [attr.aria-label]="'Sort by date, currently ' + (sort() === 'newest' ? 'newest first' : 'oldest first')"
+    >
+      <svg
+        class="ghost-btn__icon ghost-btn__icon--flip"
+        [class.is-flipped]="sort() === 'oldest'"
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M12 5v14m0 0-5-5m5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+      {{ sort() === 'newest' ? 'Newest' : 'Oldest' }}
+    </button>
+  </div>
+
+  <!-- ── Body ────────────────────────────────────────────────────────────── -->
+  <div class="history__body">
+    @if (isLoading()) {
+      <ul class="history__list" aria-hidden="true">
+        @for (row of skeletonRows; track row) {
+          <li class="qcard qcard--skeleton">
+            <app-skeleton variant="circle" width="38px" height="38px" />
+            <div class="qcard__skeleton-lines">
+              <app-skeleton variant="text" width="62%" height="15px" />
+              <app-skeleton variant="text" width="92%" height="12px" />
+              <app-skeleton variant="text" width="34%" height="10px" />
+            </div>
+          </li>
+        }
+      </ul>
+      <p class="sr-only" role="status">Loading query history…</p>
+    } @else if (errorMessage()) {
+      <div class="notice notice--error" role="alert">
+        <svg class="notice__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+          <path d="M12 7.5v5.5m0 3.2v.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+        <p>{{ errorMessage() }}</p>
+        <button type="button" class="notice__action" (click)="refresh()">Try again</button>
+      </div>
+    } @else if (items().length === 0) {
+      <div class="empty">
+        <div class="empty__art" aria-hidden="true">
+          <span class="orb"></span>
+          <svg class="empty__glyph" viewBox="0 0 120 96" fill="none">
+            <rect x="14" y="18" width="74" height="16" rx="8" fill="currentColor" />
+            <rect x="14" y="42" width="92" height="16" rx="8" fill="currentColor" opacity="0.7" />
+            <rect x="14" y="66" width="56" height="16" rx="8" fill="currentColor" opacity="0.48" />
+          </svg>
+        </div>
+        <h2 class="empty__title">No query history yet</h2>
+        <p class="empty__text">
+          Conversations you have with the co-pilot are saved here automatically, ready to reopen or review.
+        </p>
+        <button type="button" class="btn btn--primary" (click)="startChat()">Ask your first question</button>
+      </div>
+    } @else if (filteredItems().length === 0) {
+      <div class="empty">
+        <div class="empty__art" aria-hidden="true">
+          <span class="orb orb--quiet"></span>
+          <svg class="empty__glyph" viewBox="0 0 120 96" fill="none">
+            <circle cx="54" cy="44" r="24" stroke="currentColor" stroke-width="6" />
+            <path d="m72 62 18 18" stroke="currentColor" stroke-width="6" stroke-linecap="round" opacity="0.75" />
+          </svg>
+        </div>
+        <h2 class="empty__title">Nothing matches your filters</h2>
+        <p class="empty__text">
+          @if (searchTerm()) {
+            No conversation mentions “{{ searchTerm() }}”.
+          } @else {
+            No conversation falls inside the selected time range.
+          }
+        </p>
+        <button type="button" class="ghost-btn" (click)="clearFilters()">Clear filters</button>
+      </div>
+    } @else {
+      @for (group of pagedGroups(); track group.label) {
+        <h2 class="history__group">{{ group.label }}</h2>
+        <ul class="history__list">
+          @for (item of group.items; track item.id) {
+            <li class="qcard">
+              <button
+                type="button"
+                class="qcard__main"
+                (click)="restore(item)"
+                [attr.aria-label]="'Reopen conversation: ' + item.question"
+              >
+                <span class="qcard__avatar" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M4.5 6.5A2.5 2.5 0 0 1 7 4h10a2.5 2.5 0 0 1 2.5 2.5v7A2.5 2.5 0 0 1 17 16H9.8L6 19.2V16h-1.5z"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+
+                <span class="qcard__content">
+                  <span class="qcard__question">{{ item.question }}</span>
+                  <span class="qcard__summary">{{ item.answerSummary }}</span>
+                  <span class="qcard__meta">
+                    <time
+                      class="qcard__time"
+                      [attr.datetime]="item.timestamp"
+                      [title]="item.timestamp | date: 'full'"
+                    >
+                      {{ relativeTime(item.timestamp) }}
+                    </time>
+                    <span class="qcard__sep" aria-hidden="true"></span>
+                    <span class="qcard__clock">{{ item.timestamp | date: 'MMM d, h:mm a' }}</span>
+                    <span class="qcard__session" [title]="'Session ' + item.sessionId">
+                      {{ item.sessionId }}
+                    </span>
+                  </span>
+                </span>
+              </button>
+
+              <div class="qcard__actions">
+                <button
+                  type="button"
+                  class="ghost-btn ghost-btn--sm"
+                  (click)="restore(item)"
+                  [attr.aria-label]="'Restore conversation: ' + item.question"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path
+                      d="M4 11a8 8 0 1 1 2.3 5.7M4 11V6m0 5h5"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                  <span class="qcard__action-label">Restore</span>
+                </button>
+                <button
+                  type="button"
+                  class="ghost-btn ghost-btn--sm ghost-btn--danger"
+                  (click)="confirmRemove(item)"
+                  [attr.aria-label]="'Delete conversation: ' + item.question"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path
+                      d="M5 7h14M10 7V5.5A1.5 1.5 0 0 1 11.5 4h1A1.5 1.5 0 0 1 14 5.5V7m3 0-.7 11.1a1.9 1.9 0 0 1-1.9 1.8H9.6a1.9 1.9 0 0 1-1.9-1.8L7 7"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                  <span class="qcard__action-label">Delete</span>
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+
+      @if (pageCount() > 1) {
+        <nav class="pager" aria-label="Query history pages">
+          <p class="pager__range">
+            Showing <strong>{{ rangeStart() }}–{{ rangeEnd() }}</strong> of {{ filteredItems().length }}
+          </p>
+          <div class="pager__controls">
+            <button
+              type="button"
+              class="pager__step"
+              (click)="goToPage(currentPage() - 1)"
+              [disabled]="currentPage() === 1"
+              aria-label="Previous page"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="m14 6-6 6 6 6"
+                  stroke="currentColor"
+                  stroke-width="1.9"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            @for (page of pageNumbers(); track page) {
+              <button
+                type="button"
+                class="pager__page"
+                [class.is-active]="page === currentPage()"
+                [attr.aria-current]="page === currentPage() ? 'page' : null"
+                [attr.aria-label]="'Page ' + page"
+                (click)="goToPage(page)"
+              >
+                {{ page }}
+              </button>
+            }
+            <button
+              type="button"
+              class="pager__step"
+              (click)="goToPage(currentPage() + 1)"
+              [disabled]="currentPage() === pageCount()"
+              aria-label="Next page"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="m10 6 6 6-6 6"
+                  stroke="currentColor"
+                  stroke-width="1.9"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+        </nav>
+      }
+    }
+  </div>
+</section>
+
+<!-- Delete confirmation — the native <dialog> wrapper gives focus trapping and ESC. -->
+<app-modal [open]="pendingDelete() !== null" titleText="Delete conversation?" (closed)="cancelRemove()">
+  <p class="confirm__text">
+    This permanently removes the conversation and its audit trail entry. It can’t be undone.
+  </p>
+  @if (pendingDelete(); as item) {
+    <p class="confirm__quote">“{{ item.question }}”</p>
   }
-</div>
+  <div class="confirm__actions">
+    <button type="button" class="ghost-btn" (click)="cancelRemove()">Cancel</button>
+    <button type="button" class="btn btn--danger" (click)="remove()">Delete conversation</button>
+  </div>
+</app-modal>

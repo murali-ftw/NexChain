@@ -7,6 +7,13 @@ response_mapper.state_to_fields — no keyword routing or placeholder text
 lives here (that was the P2.5-era stand-in; see git history if it's ever
 needed again).
 
+Day 10 (Platform stabilization) hardens the error boundary ahead of that
+wiring: every AI-layer failure returns a clean, typed non-200 with a generic
+client message (the real detail is logged, not returned). ToolError — the one
+shape the tool layer normalizes every failure to — becomes a 503, distinct from
+the 500 an actual bug gets. So the error contract is settled before the graph
+that exercises it lands.
+
 Not to be confused with mock_apis/ (P2.4), which simulates the external ERP /
 shipment / inventory systems and runs on its own port. This app is the AI
 layer's front door; that one is a system the AI layer will eventually call.
@@ -31,6 +38,7 @@ from ai.contracts import CoPilotState
 from ai.graph.graph import build_graph
 from ai_service.response_mapper import state_to_fields
 from ai_service.schemas import AiQueryRequest, AiQueryResponse
+from ai_service.tools.errors import ToolError
 
 logger = logging.getLogger(__name__)
 
@@ -87,14 +95,36 @@ async def _validation_error(
     return JSONResponse(status_code=422, content={"detail": exc.errors()[0]["msg"]})
 
 
+@app.exception_handler(ToolError)
+async def _tool_error(_request: Request, exc: ToolError) -> JSONResponse:
+    """A tool the graph called failed (P2.10 stabilization). The tool layer has
+    already normalized every httpx/psycopg failure to ToolError, so this is the
+    one AI-layer failure shape — map it to a clear 503 "service unavailable"
+    (tech-req §7) rather than the generic 500 a bug gets. The client detail stays
+    generic (the message can embed internal error text); the specifics are logged
+    for the trace_id to correlate against (tech-req §9)."""
+    logger.warning(
+        "Tool failure in /ai/query: tool=%s retryable=%s detail=%s",
+        exc.tool,
+        exc.retryable,
+        exc.message,
+    )
+    return JSONResponse(
+        status_code=503, content={"detail": "AI tool temporarily unavailable"}
+    )
+
+
 @app.exception_handler(Exception)
 async def _unhandled(_request: Request, exc: Exception) -> JSONResponse:
     """Contract with Person 1: on failure this service returns a non-200 and
     Spring Boot maps it to a partial ChatResponse with a warning — it never
-    passes a 5xx through to Angular. So failures must be non-200 and typed,
-    not a stack trace."""
+    passes a 5xx through to Angular. So failures must be non-200 and typed, not a
+    stack trace. The client message stays generic (docs/api_contracts.md); the
+    real exception is logged server-side, not returned."""
     logger.exception("Unhandled error in /ai/query")
-    return JSONResponse(status_code=500, content={"detail": f"AI service error: {exc}"})
+    return JSONResponse(
+        status_code=500, content={"detail": "Internal AI service error"}
+    )
 
 
 @app.get("/health")

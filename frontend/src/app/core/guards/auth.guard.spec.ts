@@ -29,16 +29,18 @@ describe('authGuard', () => {
     expect(result).toBeTrue();
   });
 
-  it('redirects to /login when not authenticated', () => {
+  it('redirects to /login with a returnUrl when not authenticated', () => {
     authServiceSpy.isAuthenticated.and.returnValue(false);
     const urlTree = {} as UrlTree;
     routerSpy.createUrlTree.and.returnValue(urlTree);
 
     const result = TestBed.runInInjectionContext(() =>
-      authGuard({} as never, {} as never),
+      authGuard({} as never, { url: '/history' } as never),
     );
 
-    expect(routerSpy.createUrlTree).toHaveBeenCalledWith(['/login']);
+    expect(routerSpy.createUrlTree).toHaveBeenCalledWith(['/login'], {
+      queryParams: { returnUrl: '/history' },
+    });
     expect(result).toBe(urlTree);
   });
 });

@@ -31,7 +31,9 @@ def get_order_status(order_no: str) -> OrderStatus:
     (Day 10) needs the ERP's live view alongside the DB's get_order
     (ai/CONTRACTS.md §5 notes these are deliberately different systems).
     """
-    return OrderStatus(**mcp_client.call_tool("get_order_status", {"order_no": order_no}))
+    return OrderStatus(
+        **mcp_client.call_tool("get_order_status", {"order_no": order_no})
+    )
 
 
 def get_inventory(sku: str) -> InventoryRecord:

@@ -1,8 +1,7 @@
 package com.nexchain.backend.auth.dto;
 
 /**
- * Day 2 contract stub. {@code accessToken} is a fixed literal, not a real JWT —
- * Spring Security / JWT issuance is P1.6 (Day 6), not today.
+ * {@code accessToken} is a real signed JWT, issued by Spring Security (P1.6, Day 6).
  */
 public record LoginResponse(
         String accessToken, String refreshToken, String tokenType, long expiresIn, UserSummary user) {}

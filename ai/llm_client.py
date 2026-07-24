@@ -18,6 +18,7 @@ ai/contracts.py, owned by the graph in P3.8) — do not conflate the two.
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 
@@ -27,6 +28,8 @@ from dotenv import load_dotenv
 _ENV_PATH = Path(__file__).resolve().parent / ".env"
 if _ENV_PATH.exists():
     load_dotenv(_ENV_PATH)
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT_SECONDS = 20.0
 
@@ -40,12 +43,25 @@ class LLMConfigError(RuntimeError):
 class LLMProviderError(RuntimeError):
     """The provider call failed (network error, timeout, non-2xx, bad response shape)."""
 
+    def __init__(self, message: str, status_code: int | None = None) -> None:
+        super().__init__(message)
+        # Lets the retry wrapper (ai/graph/retry.py) back off specifically on 429s
+        # instead of immediately re-sending into the same rate limit — None for
+        # every non-HTTP failure (timeout, connection error, bad response shape).
+        self.status_code = status_code
+
 
 def _call_gemini(prompt: str, model: str, api_key: str, timeout: float) -> str:
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    # The key goes in a header, not `params={"key": api_key}` — httpx embeds the full
+    # request URL (query string included) in every exception it raises (timeouts,
+    # non-2xx via raise_for_status(), connection errors), and generate() below wraps
+    # any such exception's message into LLMProviderError, which reaches CoPilotResponse
+    # .error and is rendered to the end user. A URL-embedded key would leak there on
+    # every transient Gemini failure (verified live via a real 429 during Day 13 QA).
     response = httpx.post(
         url,
-        params={"key": api_key},
+        headers={"x-goog-api-key": api_key},
         json={"contents": [{"parts": [{"text": prompt}]}]},
         timeout=timeout,
     )
@@ -78,7 +94,16 @@ def generate(prompt: str, timeout: float = DEFAULT_TIMEOUT_SECONDS) -> str:
     model, api_key = _resolve_primary()
     try:
         return _call_gemini(prompt, model, api_key, timeout)
-    except LLMProviderError:
-        raise
     except Exception as exc:  # noqa: BLE001 - normalize any failure into LLMProviderError
-        raise LLMProviderError(f"Gemini call failed: {exc}") from exc
+        # LLMProviderError's message reaches CoPilotResponse.error and is rendered to
+        # the end user (ai_service/response_mapper.py) — the underlying exception (a
+        # bare httpx error) names the vendor and endpoint, which is an internal
+        # implementation detail, not something an end user should see. Full detail
+        # goes to the log; only a generic message crosses that boundary (Day 13 QA).
+        logger.warning("LLM provider call failed: %s", exc)
+        status_code = (
+            exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
+        )
+        raise LLMProviderError(
+            "The AI provider call failed. Please try again.", status_code=status_code
+        ) from exc

@@ -1,0 +1,13 @@
+<button
+  [type]="type"
+  class="btn"
+  [class.btn--primary]="variant === 'primary'"
+  [class.btn--secondary]="variant === 'secondary'"
+  [class.btn--tactile]="variant === 'tactile'"
+  [class.ring-spectrum-glow]="variant === 'primary'"
+  [disabled]="disabled"
+  [attr.aria-label]="ariaLabel ?? null"
+  (click)="buttonClick.emit($event)"
+>
+  <ng-content></ng-content>
+</button>
