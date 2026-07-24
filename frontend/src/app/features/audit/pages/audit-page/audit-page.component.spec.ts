@@ -63,7 +63,7 @@ describe('AuditPageComponent', () => {
     httpMock.expectOne(AUDIT_URL).flush([]);
     fixture.detectChanges();
 
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('No audit records yet');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Nothing logged yet');
   });
 
   it('renders every loaded entry', () => {

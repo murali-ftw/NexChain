@@ -39,6 +39,9 @@ export class AssistantResponseComponent {
     return this._response()!;
   }
 
+  /** Which copy button most recently succeeded, so only that one shows "Copied". */
+  readonly copiedKey = signal<string | null>(null);
+
   /** Whether the status/shipment/delay/SLA card grid has anything to show at all —
    * governs whether the grid wrapper renders, since every card inside self-hides
    * individually but an all-hidden grid would still show empty padding. */
@@ -56,4 +59,19 @@ export class AssistantResponseComponent {
       r.slaStatus !== 'N/A'
     );
   });
+
+  /** Copies raw source text (not rendered markup). No-ops where the Clipboard
+   * API is unavailable or permission is refused — never throws at the user. */
+  copy(key: string, text: string | null): void {
+    if (!text) {
+      return;
+    }
+    void navigator.clipboard?.writeText(text).then(
+      () => {
+        this.copiedKey.set(key);
+        setTimeout(() => this.copiedKey.set(null), 1600);
+      },
+      () => {},
+    );
+  }
 }

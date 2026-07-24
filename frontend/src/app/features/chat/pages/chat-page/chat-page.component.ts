@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, ViewChild, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, OnInit, ViewChild, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { timer } from 'rxjs';
 import { ChatInputComponent } from '../../../../shared/components/chat-input/chat-input.component';
@@ -23,6 +23,18 @@ export class ChatPageComponent implements OnInit {
   readonly isLoading = signal(false);
   readonly loadingText = signal('Thinking...');
   readonly isRestoring = signal(false);
+
+  /** Connectivity banner only — sending is deliberately not gated on this, so
+   * behaviour is unchanged and a stale `offline` reading can never block a user. */
+  readonly isOffline = signal(typeof navigator !== 'undefined' && navigator.onLine === false);
+
+  @HostListener('window:offline') onOffline(): void {
+    this.isOffline.set(true);
+  }
+
+  @HostListener('window:online') onOnline(): void {
+    this.isOffline.set(false);
+  }
 
   @ViewChild('scrollAnchor') private scrollAnchor?: ElementRef<HTMLDivElement>;
 

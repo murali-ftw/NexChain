@@ -1,18 +1,33 @@
+// Assistant message card. Spans the conversation column (the column itself is
+// width-capped by the page) so structured cards, SQL and tables get room.
 .response {
-  align-self: flex-start;
-  max-width: 80%;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
+  align-self: stretch;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-sm);
+  padding: 18px var(--space-lg);
+  background: var(--color-glass-card);
+  border: 1px solid var(--color-border-glass-light);
+  border-radius: var(--radius-card);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
+  box-shadow: var(--shadow-glass-panel);
+  animation: var(--animate-card-in);
+  transition: box-shadow 200ms var(--ease-spring);
+
+  &:hover {
+    box-shadow: var(--shadow-glass-elevation-2);
+
+    .response__copy {
+      opacity: 1;
+    }
+  }
 }
 
+// --- Header ---------------------------------------------------------------
 .response__header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
 }
 
@@ -23,28 +38,83 @@
   justify-content: center;
   width: 26px;
   height: 26px;
-  border-radius: var(--radius-sm);
-  background: var(--color-primary);
+  border-radius: var(--radius-chip);
+  background: var(--color-action-primary-dark);
   color: #fff;
-  font-size: 11px;
+  font-size: var(--text-overline);
   font-weight: 700;
 }
 
-.response__headline {
-  font-size: 14.5px;
-  font-weight: 700;
-  line-height: 1.4;
-  color: var(--color-text);
-  margin: 0;
+.response__author {
+  font-size: var(--text-overline);
+  line-height: var(--text-overline--line-height);
+  font-weight: var(--text-overline--font-weight);
+  letter-spacing: var(--tracking-overline);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
 
-  // Only reachable when MarkdownLitePipe emits actual block structure
-  // (headings/lists/multiple paragraphs) — the common single-sentence case
-  // has no wrapping block element at all, so these rules don't apply to it.
+.response__copy {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid var(--color-border-glass-subtle);
+  border-radius: var(--radius-chip);
+  background: var(--color-glass-input);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  opacity: 0;
+  transition:
+    opacity 200ms var(--ease-spring),
+    color 150ms var(--ease-spring),
+    background 150ms var(--ease-spring),
+    transform 150ms var(--ease-spring);
+
+  &:hover {
+    background: #fff;
+    color: var(--color-text-primary);
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    opacity: 1;
+    outline: 2px solid var(--color-border-focus-ring);
+    outline-offset: 2px;
+  }
+
+  &--sql {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    margin-left: 0;
+    opacity: 1;
+  }
+}
+
+.response__copy-icon {
+  width: 13px;
+  height: 13px;
+}
+
+// --- Answer body + markdown ----------------------------------------------
+.response__headline {
+  font-size: var(--text-body);
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  margin: 0;
+  // "Streaming" reveal — the response arrives whole, this wipes it in top-down
+  // so it materialises rather than popping. Purely presentational.
+  animation: response-reveal 460ms var(--ease-spring) 80ms both;
+
   p,
   h4,
   ol,
   ul {
-    margin: 0 0 8px;
+    margin: 0 0 10px;
     font-weight: 400;
 
     &:last-child {
@@ -53,29 +123,176 @@
   }
 
   h4 {
+    font-size: var(--text-card-header);
     font-weight: 700;
+    color: var(--color-text-primary);
   }
 
   ol,
   ul {
     padding-left: 20px;
   }
+
+  li {
+    margin-bottom: 4px;
+  }
+
+  strong {
+    font-weight: 600;
+  }
+
+  code {
+    padding: 1px 5px;
+    border: 1px solid var(--color-border-glass-subtle);
+    border-radius: var(--radius-chip);
+    background: var(--color-glass-input);
+    font-family: var(--font-mono);
+    font-size: var(--text-code);
+  }
+
+  // Tables (styled for whenever markdown emits them — see markdown-lite pipe)
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 4px 0 10px;
+    font-size: var(--text-body);
+    border-radius: var(--radius-control);
+    overflow: hidden;
+  }
+
+  th {
+    padding: 9px var(--space-sm);
+    background: var(--color-glass-header);
+    font-size: var(--text-overline);
+    font-weight: var(--text-overline--font-weight);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-overline);
+    color: var(--color-text-secondary);
+    text-align: left;
+  }
+
+  td {
+    padding: 9px var(--space-sm);
+    border-bottom: 1px solid var(--color-border-glass-subtle);
+  }
+
+  tbody tr {
+    transition: background 150ms var(--ease-spring);
+
+    &:hover {
+      background: var(--color-glass-hover);
+    }
+  }
 }
 
+@keyframes response-reveal {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+// --- Structured card grid -------------------------------------------------
 .response__cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px 16px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-sm) var(--space-lg);
   margin: 0;
-  padding: 10px 12px;
-  background: var(--color-bg);
-  border-radius: var(--radius-sm);
+  padding: 14px var(--space-md);
+  background: var(--color-glass-canvas);
+  border: 1px solid var(--color-border-glass-subtle);
+  border-radius: var(--radius-control);
 }
 
+// --- Generated SQL block --------------------------------------------------
+.response__sql {
+  border: 1px solid var(--color-border-glass-subtle);
+  border-radius: var(--radius-control);
+  background: var(--color-glass-canvas);
+  overflow: hidden;
+}
+
+.response__sql-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 12px;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  list-style: none;
+  transition: background 150ms var(--ease-spring);
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+
+  &:hover {
+    background: var(--color-nav-hover-bg);
+  }
+}
+
+.response__sql-caret {
+  width: 12px;
+  height: 12px;
+  transition: transform 200ms var(--ease-spring);
+}
+
+.response__sql[open] .response__sql-caret {
+  transform: rotate(90deg);
+}
+
+.response__sql-body {
+  position: relative;
+}
+
+.response__code {
+  margin: 0;
+  padding: 14px var(--space-md);
+  overflow-x: auto;
+  background: var(--color-action-primary-dark);
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  line-height: var(--text-code--line-height);
+  color: var(--color-text-on-dark);
+  white-space: pre;
+}
+
+// --- Footer ---------------------------------------------------------------
 .response__footer {
-  padding-top: 8px;
-  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border-glass-subtle);
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+// Copy affordance must not be hover-only on touch, where there is no hover.
+@media (hover: none) {
+  .response__copy {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .response {
+    padding: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .response,
+  .response__headline {
+    animation: none;
+  }
+
+  .response__copy {
+    opacity: 1;
+    transition: none;
+  }
 }

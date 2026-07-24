@@ -1,97 +1,499 @@
-.history-page {
-  padding: 24px 32px;
-  max-width: 720px;
+// Query History — a searchable history dashboard on the Aetheria glass shell.
+//
+// The shell (.panel), toolbar controls (.search, .glass-input, .ghost-btn),
+// error banner (.notice), empty states (.empty, .orb) and button hierarchy
+// (.btn) all come from the shared component layer in styles.scss — this file
+// used to carry its own copy of every one of them, which is how it and the
+// Audit page drifted into looking like two different products. What remains
+// here is only what is genuinely specific to a page of query cards.
+
+.history {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  animation: var(--animate-page-in);
 }
 
-.history-page__header {
+// --- Header ---------------------------------------------------------------
+.history__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 22px 28px var(--space-md);
+}
+
+.history__title {
+  font-size: var(--text-heading);
+  line-height: var(--text-heading--line-height);
+  font-weight: var(--text-heading--font-weight);
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.history__subtitle {
+  margin-top: 3px;
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+  font-weight: var(--text-caption--font-weight);
+  color: var(--color-text-secondary);
+}
+
+.history__subtitle-flag {
+  color: var(--color-text-accent);
+}
+
+// --- Toolbar --------------------------------------------------------------
+.history__toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
+  gap: var(--space-sm);
+  padding: 0 28px 18px;
+  border-bottom: 1px solid var(--color-border-glass-subtle);
+}
 
-  h1 {
-    font-size: 20px;
-    font-weight: 700;
+// Segmented time-range filter — one glass pill, four tactile options.
+.segmented {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: var(--space-3xs);
+  padding: 3px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border-glass-subtle);
+  background: var(--color-glass-card);
+  backdrop-filter: blur(var(--blur-sm));
+  -webkit-backdrop-filter: blur(var(--blur-sm));
+}
+
+.segmented__option {
+  padding: 7px 13px;
+  border: none;
+  border-radius: var(--radius-chip);
+  background: transparent;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  transition:
+    background var(--duration-shift) var(--ease-spring),
+    color var(--duration-shift) var(--ease-spring);
+
+  &:hover:not(.is-active) {
+    background: var(--color-nav-hover-bg);
+    color: var(--color-text-primary);
+  }
+
+  &.is-active {
+    background: var(--color-nav-active-bg);
+    color: var(--color-nav-active-text);
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.8);
+  }
+
+  &:focus-visible {
+    outline-offset: 1px;
   }
 }
 
-.history-page__search {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 8px 12px;
-  min-width: 220px;
-  outline: none;
+.ghost-btn__icon--flip {
+  transition: transform var(--duration-expand) var(--ease-spring);
 
-  &:focus {
-    border-color: var(--color-primary);
+  &.is-flipped {
+    transform: rotate(180deg);
   }
 }
 
-.history-page__empty {
+// --- Body -----------------------------------------------------------------
+.history__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 22px 28px 28px;
+}
+
+.history__group {
+  margin: var(--space-lg) 0 10px;
+  font-size: var(--text-overline);
+  line-height: var(--text-overline--line-height);
+  font-weight: var(--text-overline--font-weight);
+  letter-spacing: var(--tracking-overline);
+  text-transform: uppercase;
   color: var(--color-text-muted);
-  font-size: 13px;
+
+  &:first-child {
+    margin-top: 0;
+  }
 }
 
-.history-page__list {
+.history__list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-sm);
 }
 
-.history-item {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
+// --- Query card -----------------------------------------------------------
+.qcard {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-md) var(--space-md) 18px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-border-glass-light);
+  background: var(--color-glass-card);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
+  box-shadow: var(--shadow-glass-panel);
+  transition:
+    transform var(--duration-shift) var(--ease-spring),
+    background var(--duration-shift) var(--ease-spring),
+    box-shadow var(--duration-shift) var(--ease-spring),
+    border-color var(--duration-shift) var(--ease-spring);
+  animation: var(--animate-card-in);
+
+  // §7B: lift, brighten, and pick up a blue edge glow — the glow is carried on the
+  // border and shadow, all the way round, not as a rail down one side.
+  &:hover,
+  &:focus-within {
+    transform: translateY(-2px);
+    background: var(--color-glass-bright);
+    border-color: var(--color-border-accent);
+    box-shadow:
+      var(--shadow-glass-elevation-2),
+      var(--shadow-accent-glow);
+  }
+
+  // Stagger the entrance across a page of results.
+  @for $i from 1 through 6 {
+    &:nth-child(#{$i}) {
+      animation-delay: #{($i - 1) * 45}ms;
+    }
+  }
+}
+
+.qcard__main {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-sm);
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  border-radius: var(--radius-control);
+
+  &:focus-visible {
+    outline-offset: 4px;
+  }
 }
 
-.history-item__body {
-  cursor: pointer;
-  flex: 1;
+.qcard__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 9999px;
+  color: var(--color-text-accent);
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.3) 55%, transparent 70%),
+    linear-gradient(135deg, rgba(255, 0, 122, 0.16), rgba(0, 240, 255, 0.18) 50%, rgba(255, 230, 0, 0.16));
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.9);
+  transition: box-shadow var(--duration-shift) var(--ease-spring);
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.qcard:hover .qcard__avatar {
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.9),
+    var(--shadow-iridescent-aura);
+}
+
+.qcard__content {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   min-width: 0;
 }
 
-.history-item__actions {
+.qcard__question {
+  font-size: var(--text-card-header);
+  line-height: var(--text-card-header--line-height);
+  font-weight: var(--text-card-header--font-weight);
+  color: var(--color-text-primary);
+  letter-spacing: -0.005em;
+  // Two lines max — long questions must not push the metadata out of alignment.
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.qcard__summary {
+  font-size: var(--text-body);
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// Metadata reads in one line, weakest-last: age → exact time → session id.
+.qcard__meta {
   display: flex;
-  gap: 8px;
-  flex-shrink: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: 3px;
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
 }
 
-.history-item__restore,
-.history-item__delete {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  padding: 4px 10px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.history-item__delete {
-  color: var(--color-danger, #c0392b);
-}
-
-.history-item__question {
+.qcard__time {
   font-weight: 600;
-  font-size: 13.5px;
-  margin-bottom: 4px;
+  color: var(--color-text-secondary);
 }
 
-.history-item__summary {
-  font-size: 12.5px;
-  color: var(--color-text-muted);
-  margin-bottom: 8px;
+.qcard__sep {
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background: var(--color-text-muted);
 }
 
-.history-item__timestamp {
-  font-size: 11.5px;
+.qcard__clock {
   color: var(--color-text-muted);
+}
+
+.qcard__session {
+  max-width: 180px;
+  padding: var(--space-3xs) var(--space-xs);
+  border-radius: var(--radius-chip);
+  background: var(--color-badge-na-bg);
+  color: var(--color-badge-na-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-overline);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// --- Card actions ---------------------------------------------------------
+// Visible at all times (never hover-only — keyboard and touch users get no
+// hover), but quiet until the card is engaged.
+.qcard__actions {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2xs);
+  flex-shrink: 0;
+  opacity: 0.55;
+  transition: opacity var(--duration-shift) var(--ease-spring);
+}
+
+.qcard:hover .qcard__actions,
+.qcard:focus-within .qcard__actions {
+  opacity: 1;
+}
+
+// --- Loading skeleton -----------------------------------------------------
+.qcard--skeleton {
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 18px;
+  animation: none;
+
+  &:hover {
+    transform: none;
+    background: var(--color-glass-card);
+    border-color: var(--color-border-glass-light);
+    box-shadow: var(--shadow-glass-panel);
+  }
+}
+
+.qcard__skeleton-lines {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+// --- Pagination -----------------------------------------------------------
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+  padding-top: 18px;
+  border-top: 1px solid var(--color-border-glass-subtle);
+}
+
+.pager__range {
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+
+  strong {
+    color: var(--color-text-primary);
+    font-weight: 600;
+  }
+}
+
+.pager__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+}
+
+// Square-ish siblings of .ghost-btn — same surface and border, sized to a
+// digit rather than a label.
+.pager__step,
+.pager__page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 var(--space-xs);
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border-glass-subtle);
+  background: var(--color-glass-card);
+  backdrop-filter: blur(var(--blur-sm));
+  -webkit-backdrop-filter: blur(var(--blur-sm));
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  transition:
+    background var(--duration-press) var(--ease-spring),
+    color var(--duration-press) var(--ease-spring),
+    transform var(--duration-press) var(--ease-spring);
+
+  svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  &:hover:not(:disabled):not(.is-active) {
+    background: var(--color-glass-input);
+    color: var(--color-text-primary);
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.pager__page.is-active {
+  background: var(--color-action-primary-dark);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: var(--shadow-tactile-3d);
+}
+
+// --- Delete confirmation dialog -------------------------------------------
+.confirm__text {
+  font-size: var(--text-body);
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.confirm__quote {
+  margin-top: 14px;
+  padding: var(--space-sm) 14px;
+  border: 1px solid var(--color-border-glass-subtle);
+  border-radius: var(--radius-control);
+  background: rgba(255, 255, 255, 0.6);
+  font-size: var(--text-body);
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.confirm__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: var(--space-lg);
+}
+
+// --- Responsive -----------------------------------------------------------
+@media (max-width: 900px) {
+  .history {
+    height: auto;
+  }
+
+  .history__toolbar {
+    flex-wrap: wrap;
+  }
+
+  .search {
+    flex-basis: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .history__header {
+    padding: 18px var(--space-md) 14px;
+  }
+
+  .history__toolbar {
+    padding: 0 var(--space-md) var(--space-md);
+  }
+
+  .history__body {
+    padding: 18px var(--space-md) 22px;
+  }
+
+  .qcard {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .qcard__actions {
+    opacity: 1;
+    justify-content: flex-end;
+  }
+
+  .segmented {
+    flex: 1;
+    justify-content: space-between;
+  }
+
+  .pager {
+    justify-content: center;
+  }
+
+  .pager__range {
+    flex-basis: 100%;
+    text-align: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .history,
+  .qcard {
+    animation: none;
+  }
+
+  .qcard:hover,
+  .qcard:focus-within,
+  .pager__step:hover,
+  .pager__page:hover {
+    transform: none;
+  }
 }

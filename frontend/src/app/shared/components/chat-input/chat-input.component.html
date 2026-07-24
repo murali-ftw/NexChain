@@ -1,23 +1,93 @@
-<div class="chat-input">
-  <label class="chat-input__label" for="chat-message">Message</label>
-  <textarea
-    id="chat-message"
-    class="chat-input__field"
-    rows="1"
-    placeholder="Ask about an order, shipment, inventory, or SLA policy..."
-    aria-label="Type your question"
-    [(ngModel)]="message"
-    [disabled]="disabled"
-    (keydown.enter)="onEnter($event)"
-  ></textarea>
-  <button
-    class="chat-input__send"
-    type="button"
-    [disabled]="isBlank || disabled"
-    [attr.aria-disabled]="isBlank || disabled"
-    aria-label="Send message"
-    (click)="submit()"
-  >
-    Send
-  </button>
+<div
+  class="chat-input"
+  [class.chat-input--dragging]="isDragging()"
+  (dragover)="onDragOver($event)"
+  (dragleave)="onDragLeave($event)"
+  (drop)="onDrop($event)"
+>
+  <!-- Attached context chips (local only — never transmitted, see component doc) -->
+  @if (attachments().length) {
+    <ul class="chat-input__chips" aria-label="Attached context">
+      @for (name of attachments(); track name) {
+        <li class="chat-input__chip">
+          <svg class="chat-input__chip-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path
+              d="M9 2H4.5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V5.5L9 2Z"
+              stroke="currentColor"
+              stroke-width="1.3"
+              stroke-linejoin="round"
+            />
+            <path d="M9 2v3.5h3.5" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" />
+          </svg>
+          <span class="chat-input__chip-name">{{ name }}</span>
+          <button
+            type="button"
+            class="chat-input__chip-remove"
+            [attr.aria-label]="'Remove ' + name"
+            (click)="removeAttachment(name)"
+          >
+            ✕
+          </button>
+        </li>
+      }
+    </ul>
+  }
+
+  <div class="chat-input__row">
+    <!-- Tactile spherical context button (design_system.md §7D) -->
+    <button
+      class="chat-input__context"
+      type="button"
+      aria-label="Add context files"
+      [disabled]="disabled"
+      (click)="openFilePicker()"
+    >
+      <span aria-hidden="true">+</span>
+    </button>
+    <input
+      #filePicker
+      class="chat-input__file"
+      type="file"
+      multiple
+      tabindex="-1"
+      aria-hidden="true"
+      (change)="onFilesPicked($event)"
+    />
+
+    <label class="chat-input__label" for="chat-message">Message</label>
+    <textarea
+      #field
+      id="chat-message"
+      class="chat-input__field"
+      rows="1"
+      placeholder="Ask about an order, shipment, inventory, or SLA policy..."
+      aria-label="Type your question"
+      [(ngModel)]="message"
+      [disabled]="disabled"
+      (input)="autoGrow($event)"
+      (keydown.enter)="onEnter($event)"
+    ></textarea>
+
+    <button
+      class="chat-input__send"
+      type="button"
+      [disabled]="isBlank || disabled"
+      [attr.aria-disabled]="isBlank || disabled"
+      aria-label="Send message"
+      (click)="submit()"
+    >
+      <span class="chat-input__send-glow" aria-hidden="true"></span>
+      <svg class="chat-input__send-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M4 10h11M10.5 5.5 15 10l-4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </button>
+  </div>
+
+  <p class="chat-input__hint">
+    <kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line · drop files to attach
+  </p>
+
+  @if (isDragging()) {
+    <div class="chat-input__dropzone" aria-hidden="true">Drop files to attach as context</div>
+  }
 </div>

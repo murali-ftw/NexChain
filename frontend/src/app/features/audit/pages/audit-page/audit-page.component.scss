@@ -1,177 +1,259 @@
-.audit-page {
-  padding: 24px 32px;
+// Audit Log — the same glass shell, toolbar and empty-state grammar as Query
+// History, because they are the same kind of screen: a filtered list of past
+// activity. Everything reusable (.panel, .ghost-btn, .search, .glass-input,
+// .notice, .empty, .orb) comes from styles.scss; only the layout and the
+// table's own column behaviour are page-specific and live here.
 
-  @media (max-width: 900px) {
-    padding: 16px;
-  }
+.audit {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  animation: var(--animate-page-in);
 }
 
-.audit-page__header {
+// --- Header ---------------------------------------------------------------
+.audit__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 22px 28px var(--space-md);
+}
+
+.audit__title {
+  font-size: var(--text-heading);
+  line-height: var(--text-heading--line-height);
+  font-weight: var(--text-heading--font-weight);
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.audit__subtitle {
+  margin-top: 3px;
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+  font-weight: var(--text-caption--font-weight);
+  color: var(--color-text-secondary);
+}
+
+.audit__subtitle-flag {
+  color: var(--color-text-accent);
+}
+
+// --- Toolbar --------------------------------------------------------------
+.audit__toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-
-  h1 {
-    font-size: 20px;
-    font-weight: 700;
-  }
-}
-
-.audit-page__refresh {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  padding: 6px 14px;
-  font-size: 12.5px;
-  cursor: pointer;
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
-}
-
-.audit-page__search {
-  margin-bottom: 12px;
-
-  input {
-    width: 100%;
-    max-width: 480px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    padding: 8px 12px;
-    font-size: 12.5px;
-    background: var(--color-surface);
-  }
-}
-
-.audit-page__filters {
-  display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: var(--space-sm);
+  padding: 0 28px 18px;
+  border-bottom: 1px solid var(--color-border-glass-subtle);
 }
 
-.audit-table__scroll {
-  width: 100%;
-  overflow-x: auto;
+.audit__filter {
+  flex: 0 1 168px;
+  min-width: 0;
 }
 
-.audit-page__filter {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 8px 12px;
-  font-size: 12.5px;
-  color: var(--color-text-muted);
-  background: var(--color-surface);
+// Date fields need less room than a free-text filter and shouldn't stretch.
+.audit__filter--date {
+  flex: 0 0 auto;
 }
 
-.audit-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-
-  th {
-    text-align: left;
-    font-size: 11.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--color-text-muted);
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  td {
-    padding: 10px 14px;
-    font-size: 12.5px;
-    border-bottom: 1px solid var(--color-border);
-  }
+// --- Body -----------------------------------------------------------------
+.audit__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 22px 28px 28px;
 }
 
-.audit-table__row {
+// --- Table ----------------------------------------------------------------
+// The row is the click target for the detail dialog, so it has to announce
+// itself: pointer, wash on hover, and a real focus ring for keyboard users.
+.audit__row {
   cursor: pointer;
 
-  &:hover {
-    background: var(--color-surface-hover, rgba(128, 128, 128, 0.08));
+  &:focus-visible {
+    outline: 2px solid var(--color-border-focus-ring);
+    outline-offset: -2px;
   }
 }
 
-.audit-table__empty {
-  text-align: center;
-  color: var(--color-text-muted);
-  padding: 28px 14px;
+.audit__cell--time {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
 }
 
-.audit-drawer__backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  display: flex;
-  justify-content: flex-end;
-  z-index: 50;
+.audit__cell--user {
+  white-space: nowrap;
+  font-weight: 500;
 }
 
-.audit-drawer {
-  width: min(420px, 100%);
-  height: 100%;
-  background: var(--color-surface);
-  border-left: 1px solid var(--color-border);
-  padding: 20px;
+// The question is the column worth reading; it gets the slack, the rest stay tight.
+.audit__cell--question {
+  min-width: 240px;
+  max-width: 420px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.audit__cell--agents {
+  max-width: 200px;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Intent / agent / document tokens — chip geometry shared with <app-badge>.
+.audit__tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+}
+
+.audit__tag {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-3xs) var(--space-xs);
+  border-radius: var(--radius-chip);
+  background: var(--color-nav-active-bg);
+  color: var(--color-text-accent);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+// --- Detail dialog --------------------------------------------------------
+// A dense record needs more room than the 480px confirm dialog it shares a
+// component with; one custom property widens it without a second component.
+app-modal {
+  --modal-width: 620px;
+}
+
+.audit-detail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-md);
+  margin: 0;
+  max-height: 62vh;
   overflow-y: auto;
 }
 
-.audit-drawer__header {
+// Fields whose value is prose, SQL or a list can't share a 180px column.
+.audit-detail__wide {
+  grid-column: 1 / -1;
+}
+
+.audit-detail__mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  font-weight: 400;
+  word-break: break-all;
+}
+
+.audit-detail__code {
+  margin: 0;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-control);
+  background: var(--color-action-primary-dark);
+  color: var(--color-text-on-dark);
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  line-height: var(--text-code--line-height);
+  font-weight: 400;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+
+.audit-detail__list,
+.audit-detail__warnings {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-weight: 400;
+}
+
+.audit-detail__call {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  font-size: var(--text-caption);
+}
 
-  h2 {
-    font-size: 16px;
-    font-weight: 700;
+.audit-detail__latency {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+// Same enclosed treatment as the assistant card's warning block — one way of
+// drawing an inline message, not a second one with a rail down its side.
+.audit-detail__warnings li {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border-warning);
+  border-radius: var(--radius-chip);
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-strong);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+}
+
+.audit-detail__loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.audit-detail__loading-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+// --- Responsive -----------------------------------------------------------
+@media (max-width: 900px) {
+  .audit {
+    height: auto;
+  }
+
+  .audit__filter {
+    flex: 1 1 140px;
   }
 }
 
-.audit-drawer__close {
-  border: none;
-  background: transparent;
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  color: var(--color-text-muted);
-}
-
-.audit-drawer__loading,
-.audit-drawer__error {
-  color: var(--color-text-muted);
-  font-size: 12.5px;
-}
-
-.audit-drawer__fields {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 4px 0;
-  font-size: 12.5px;
-
-  dt {
-    font-weight: 600;
-    margin-top: 12px;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    font-size: 10.5px;
-    letter-spacing: 0.03em;
+@media (max-width: 640px) {
+  .audit__header {
+    padding: 18px var(--space-md) 14px;
   }
 
-  dd {
-    margin: 2px 0 0;
+  .audit__toolbar {
+    padding: 0 var(--space-md) var(--space-md);
+  }
 
-    ul {
-      margin: 4px 0 0;
-      padding-left: 16px;
-    }
+  .audit__body {
+    padding: 18px var(--space-md) 22px;
+  }
+
+  .audit-detail {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .audit {
+    animation: none;
   }
 }

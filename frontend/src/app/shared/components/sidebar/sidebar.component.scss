@@ -1,136 +1,552 @@
+// Floating glass nav dock (design_system.md §7A). Detached from the viewport
+// edge by the shell's gutter, so it reads as a panel over the ambient mesh.
 .sidebar {
+  --rail-width: 240px;
+  --nav-item-height: 42px;
+  --nav-gap: 4px;
+
   display: flex;
   flex-direction: column;
-  width: var(--sidebar-width);
+  width: var(--rail-width);
   flex-shrink: 0;
   height: 100%;
-  background: var(--color-surface);
-  border-right: 1px solid var(--color-border);
-  padding: 20px 16px;
+  padding: 18px var(--space-md);
+  background: var(--color-glass-canvas);
+  backdrop-filter: blur(var(--blur-lg));
+  -webkit-backdrop-filter: blur(var(--blur-lg));
+  border: 1px solid var(--color-border-glass-light);
+  border-radius: var(--radius-shell);
+  box-shadow: var(--shadow-glass-panel);
+  transition: width 300ms var(--ease-spring);
 }
 
+.sidebar--collapsed {
+  --rail-width: 78px;
+  padding: 18px 12px;
+}
+
+// --- Brand ----------------------------------------------------------------
 .sidebar__brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 28px;
+  gap: 11px;
+  padding: 0 4px;
+  margin-bottom: 26px;
+  min-height: 40px;
 }
 
 .sidebar__logo {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
-  background: var(--color-primary);
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-control);
+  background: linear-gradient(180deg, var(--color-action-tactile-gray) 0%, var(--color-action-primary-dark) 100%);
   color: #fff;
-  font-weight: 700;
-  font-size: 13px;
+  box-shadow: var(--shadow-tactile-3d);
+  transition: box-shadow 300ms var(--ease-spring);
+
+  svg {
+    width: 21px;
+    height: 21px;
+  }
 }
 
-.sidebar__title {
-  font-weight: 600;
-  font-size: 14px;
-  line-height: 1.2;
+.sidebar:hover .sidebar__logo {
+  box-shadow: var(--shadow-tactile-3d), var(--shadow-iridescent-aura);
 }
 
-.sidebar__nav {
+// Every label that shrinks away with the rail. Animating max-width (not
+// display) is what lets the text narrow in step with the dock instead of
+// blinking out on the first frame of the collapse.
+.sidebar__wordmark,
+.sidebar__label,
+.sidebar__identity-text,
+.sidebar__status-text,
+.sidebar__logout-text {
+  max-width: 160px;
+  overflow: hidden;
+  white-space: nowrap;
+  transition:
+    opacity 200ms var(--ease-spring),
+    max-width 300ms var(--ease-spring);
+}
+
+.sidebar__wordmark {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.sidebar__name {
+  font-size: var(--text-card-header);
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.015em;
+}
+
+.sidebar__tagline {
+  font-size: var(--text-overline);
+  line-height: 1.3;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar__collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: var(--radius-chip);
+  background: transparent;
+  color: var(--color-text-muted);
+  transition:
+    background 150ms var(--ease-spring),
+    color 150ms var(--ease-spring);
+
+  svg {
+    width: 15px;
+    height: 15px;
+    transition: transform 300ms var(--ease-spring);
+  }
+
+  &:hover {
+    background: var(--color-nav-hover-bg);
+    color: var(--color-text-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+// --- Section label --------------------------------------------------------
+.sidebar__section-label {
+  padding: 0 12px;
+  margin-bottom: var(--space-xs);
+  font-size: var(--text-overline);
+  line-height: var(--text-overline--line-height);
+  font-weight: var(--text-overline--font-weight);
+  letter-spacing: var(--tracking-overline);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  height: 14px;
+  transition:
+    opacity 200ms var(--ease-spring),
+    height 300ms var(--ease-spring),
+    margin-bottom 300ms var(--ease-spring);
+}
+
+// --- Navigation -----------------------------------------------------------
+.sidebar__nav {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--nav-gap);
+}
+
+// §7A: 3px blue pill on the left edge. One element for the whole nav, so moving
+// between routes slides it instead of cross-fading two separate indicators.
+.sidebar__indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3px;
+  height: 18px;
+  border-radius: 0 var(--radius-chip) var(--radius-chip) 0;
+  background: var(--color-nav-active-text);
+  transform: translateY(
+    calc(var(--nav-active, 0) * (var(--nav-item-height) + var(--nav-gap)) + (var(--nav-item-height) - 18px) / 2)
+  );
+  transition:
+    transform 300ms var(--ease-spring),
+    opacity 200ms var(--ease-spring);
+
+  &.is-hidden {
+    opacity: 0;
+  }
 }
 
 .sidebar__link {
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-muted);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  height: var(--nav-item-height);
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  color: var(--color-nav-inactive-text);
   font-weight: 500;
+  font-size: var(--text-body);
+  white-space: nowrap;
+  overflow: hidden;
+  transition:
+    background 200ms var(--ease-spring),
+    color 200ms var(--ease-spring),
+    box-shadow 200ms var(--ease-spring);
 
   &:hover {
-    background: var(--color-bg);
-    color: var(--color-text);
+    background: var(--color-nav-hover-bg);
+    color: var(--color-text-primary);
+    // Hover glow — a soft blue bloom rather than a hard border.
+    box-shadow: var(--shadow-accent-glow);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-focus-ring);
+    outline-offset: 2px;
   }
 
   &--active {
-    background: var(--color-primary);
-    color: #fff;
+    background: var(--color-nav-active-bg);
+    color: var(--color-nav-active-text);
 
     &:hover {
-      background: var(--color-primary-hover);
-      color: #fff;
+      background: var(--color-nav-active-bg);
     }
   }
 }
 
+.sidebar__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  transition: transform 200ms var(--ease-spring);
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.sidebar__link:hover .sidebar__icon {
+  transform: scale(1.08);
+}
+
+.sidebar__label {
+  text-overflow: ellipsis;
+}
+
+// --- Profile capsule ------------------------------------------------------
 .sidebar__footer {
   margin-top: auto;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border);
+  padding-top: 18px;
+}
+
+.sidebar__profile {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 10px;
+  padding: 12px;
+  background: var(--color-glass-card);
+  border: 1px solid var(--color-border-glass-subtle);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-glass-panel);
+  transition:
+    padding 300ms var(--ease-spring),
+    background 200ms var(--ease-spring);
+}
+
+.sidebar__identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sidebar__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  color: #fff;
+  font-size: var(--text-code);
+  font-weight: 700;
+  background: linear-gradient(180deg, var(--color-action-tactile-gray) 0%, var(--color-action-primary-dark) 100%);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.35);
+}
+
+.sidebar__identity-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
 }
 
 .sidebar__user {
-  font-size: 12px;
+  font-size: var(--text-caption);
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar__role {
+  font-size: var(--text-overline);
+  line-height: 1.3;
+  font-weight: var(--text-overline--font-weight);
+  letter-spacing: var(--tracking-overline);
+  text-transform: uppercase;
   color: var(--color-text-muted);
 }
 
+// Status + logout share a row, divided from the identity block above it.
+.sidebar__system {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border-glass-subtle);
+}
+
 .sidebar__status {
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--text-overline);
   font-weight: 600;
+}
 
-  &--checking {
-    color: var(--color-text-muted);
+.sidebar__led {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: currentColor;
+}
+
+.sidebar__status-text {
+  text-overflow: ellipsis;
+}
+
+.sidebar__status--checking {
+  color: var(--color-text-muted);
+}
+
+.sidebar__status--up {
+  color: var(--color-status-success);
+
+  .sidebar__led {
+    // Halo makes the LED read as lit rather than as a plain dot.
+    box-shadow: 0 0 0 3px var(--color-status-success-bg);
+    animation: var(--animate-pulse-led);
   }
+}
 
-  &--up {
-    color: var(--color-success);
-  }
+.sidebar__status--unreachable {
+  color: var(--color-status-danger);
 
-  &--unreachable {
-    color: var(--color-danger);
+  .sidebar__led {
+    box-shadow: 0 0 0 3px var(--color-status-danger-bg);
   }
 }
 
 .sidebar__logout {
-  align-self: flex-start;
-  margin-top: 8px;
-  border: none;
-  background: none;
-  padding: 0;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  height: 26px;
+  padding: 0 var(--space-xs);
+  border: 1px solid transparent;
+  border-radius: var(--radius-chip);
+  background: transparent;
+  font-size: var(--text-overline);
   font-weight: 600;
-  color: var(--color-text-muted);
-  cursor: pointer;
+  color: var(--color-text-secondary);
+  transition:
+    color 150ms var(--ease-spring),
+    background 150ms var(--ease-spring),
+    border-color 150ms var(--ease-spring);
+
+  svg {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+  }
 
   &:hover {
-    color: var(--color-danger);
+    color: var(--color-status-danger);
+    background: var(--color-status-danger-bg);
+    border-color: var(--color-border-danger);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-focus-ring);
+    outline-offset: 2px;
   }
 }
 
+// --- Collapsed rail -------------------------------------------------------
+// The labels go, the accessible names do not — every control keeps its
+// aria-label and title, so the rail stays usable by screen reader and by hover.
+.sidebar--collapsed {
+  .sidebar__brand {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .sidebar__wordmark,
+  .sidebar__label,
+  .sidebar__identity-text,
+  .sidebar__status-text,
+  .sidebar__logout-text {
+    max-width: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .sidebar__section-label {
+    height: 0;
+    margin-bottom: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition:
+      opacity 200ms var(--ease-spring),
+      height 300ms var(--ease-spring),
+      margin-bottom 300ms var(--ease-spring);
+  }
+
+  .sidebar__collapse svg {
+    transform: rotate(180deg);
+  }
+
+  .sidebar__link {
+    justify-content: center;
+    padding: 0;
+    gap: 0;
+  }
+
+  .sidebar__profile {
+    padding: 10px 8px;
+    align-items: center;
+  }
+
+  .sidebar__identity {
+    justify-content: center;
+  }
+
+  .sidebar__system {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .sidebar__logout {
+    padding: 0;
+    width: 26px;
+    justify-content: center;
+  }
+}
+
+// --- Responsive: horizontal dock --------------------------------------------
 @media (max-width: 900px) {
-  .sidebar {
+  .sidebar,
+  .sidebar--collapsed {
+    --rail-width: 100%;
     width: 100%;
     height: auto;
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
-    border-right: none;
-    border-bottom: 1px solid var(--color-border);
-    padding: 12px 16px;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius-card);
   }
 
   .sidebar__brand {
+    flex-direction: row;
     margin-bottom: 0;
+    min-height: 0;
+  }
+
+  .sidebar__tagline,
+  .sidebar__collapse,
+  .sidebar__section-label {
+    display: none;
+  }
+
+  // The indicator's vertical maths does not survive a horizontal nav; the
+  // active item's own fill carries the state instead.
+  .sidebar__indicator {
+    display: none;
   }
 
   .sidebar__nav {
     flex-direction: row;
+    margin-left: auto;
   }
 
   .sidebar__footer {
+    margin-top: 0;
+    padding-top: 0;
+  }
+
+  .sidebar__profile {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+  }
+
+  .sidebar__system {
+    padding-top: 0;
+    border-top: none;
+    border-left: 1px solid var(--color-border-glass-subtle);
+    padding-left: 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .sidebar__wordmark,
+  .sidebar__identity-text,
+  .sidebar__status-text,
+  .sidebar__logout-text {
     display: none;
+  }
+
+  .sidebar__label {
+    display: none;
+  }
+
+  .sidebar__link {
+    padding: 0 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .sidebar__indicator,
+  .sidebar__wordmark,
+  .sidebar__collapse svg,
+  .sidebar__icon,
+  .sidebar__profile {
+    transition: none;
+  }
+
+  .sidebar__led {
+    animation: none;
+  }
+
+  .sidebar__link:hover .sidebar__icon {
+    transform: none;
   }
 }

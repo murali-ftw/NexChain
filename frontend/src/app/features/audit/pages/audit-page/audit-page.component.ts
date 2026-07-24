@@ -3,6 +3,11 @@ import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuditApiService } from '../../services/audit-api.service';
 import { AuditEntry } from '../../models/audit.model';
+import { SlaStatus } from '../../../chat/models/chat.model';
+import { BadgeComponent, BadgeStatus } from '../../../../shared/components/badge/badge.component';
+import { ModalComponent } from '../../../../shared/components/modal/modal.component';
+import { SkeletonComponent } from '../../../../shared/components/skeleton/skeleton.component';
+import { TableComponent } from '../../../../shared/components/table/table.component';
 
 /** Day 8 (P1.8): fetches real, persisted audit records from Spring Boot's GET /api/audit
  * — see docs/api_contracts.md. Global admin-facing log: every entry is visible to any
@@ -13,12 +18,15 @@ import { AuditEntry } from '../../models/audit.model';
 @Component({
   selector: 'app-audit-page',
   standalone: true,
-  imports: [DatePipe, FormsModule],
+  imports: [DatePipe, FormsModule, BadgeComponent, ModalComponent, SkeletonComponent, TableComponent],
   templateUrl: './audit-page.component.html',
   styleUrl: './audit-page.component.scss',
 })
 export class AuditPageComponent implements OnInit {
   readonly columns = ['Timestamp', 'User', 'Question', 'Intent', 'Agents Invoked', 'SLA Result'];
+
+  /** Placeholder rows for the shimmer skeleton — presentation only. */
+  readonly skeletonRows = [0, 1, 2, 3, 4, 5];
   readonly entries = signal<AuditEntry[]>([]);
   readonly isLoading = signal(true);
   readonly errorMessage = signal<string | null>(null);
@@ -75,6 +83,40 @@ export class AuditPageComponent implements OnInit {
       return true;
     });
   });
+
+  /** Drives the "· filtered" flag in the header count. Presentation only. */
+  readonly hasActiveFilters = computed(
+    () =>
+      this.searchTerm().trim() !== '' ||
+      this.userFilter().trim() !== '' ||
+      this.intentFilter() !== '' ||
+      this.dateFrom() !== '' ||
+      this.dateTo() !== '',
+  );
+
+  /** Maps the SLA wire value onto the shared <app-badge> palette, so the audit
+   * table's SLA column and the chat SLA card tint the same outcome alike. */
+  slaBadgeStatus(slaResult: SlaStatus): BadgeStatus {
+    switch (slaResult) {
+      case 'Breached':
+        return 'breached';
+      case 'At Risk':
+        return 'danger';
+      case 'On Time':
+        return 'success';
+      default:
+        return 'na';
+    }
+  }
+
+  /** Escape hatch from the "no matching records" empty state. */
+  clearFilters(): void {
+    this.searchTerm.set('');
+    this.userFilter.set('');
+    this.intentFilter.set('');
+    this.dateFrom.set('');
+    this.dateTo.set('');
+  }
 
   constructor(private readonly auditApi: AuditApiService) {}
 

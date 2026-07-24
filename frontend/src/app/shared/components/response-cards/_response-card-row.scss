@@ -1,21 +1,26 @@
 // Shared row styling for the P1.9 structured-response cards (status/shipment/delay/sla).
 // Each card is a single dt/dd pair (or a small group of them) laid out identically.
+// Same overline key + body value as the audit drawer's field list, so a fact
+// reads the same whichever surface it appears on.
 .card-row {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-3xs);
 
   dt {
-    font-size: 11px;
+    font-size: var(--text-overline);
+    line-height: var(--text-overline--line-height);
+    font-weight: var(--text-overline--font-weight);
+    letter-spacing: var(--tracking-overline);
     text-transform: uppercase;
-    letter-spacing: 0.03em;
     color: var(--color-text-muted);
   }
 
   dd {
     margin: 0;
-    font-size: 13px;
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
     font-weight: 600;
-    color: var(--color-text);
+    color: var(--color-text-primary);
   }
 }

@@ -1,0 +1,11 @@
+<dialog #dialogEl class="modal" (close)="onDialogClose()" (click)="onBackdropClick($event)">
+  <div class="modal__panel" (click)="$event.stopPropagation()">
+    <header class="modal__header">
+      <h2 class="modal__title">{{ titleText }}</h2>
+      <button type="button" class="modal__close" (click)="close()" aria-label="Close">&times;</button>
+    </header>
+    <div class="modal__body">
+      <ng-content></ng-content>
+    </div>
+  </div>
+</dialog>

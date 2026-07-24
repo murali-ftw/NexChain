@@ -1,32 +1,116 @@
-<aside class="sidebar">
+<!--
+  Icon path data is Lucide (lucide.dev, ISC), inlined rather than pulled in as a
+  package: eight paths do not justify a runtime dependency, and inlining keeps
+  every icon tree-shaken by construction.
+-->
+<aside class="sidebar" [class.sidebar--collapsed]="collapsed()">
+  <!-- ── Brand ──────────────────────────────────────────────────────────── -->
   <div class="sidebar__brand">
-    <span class="sidebar__logo">SC</span>
-    <span class="sidebar__title">Supply Chain Co-Pilot</span>
+    <span class="sidebar__logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m7.5 4.27 9 5.15" />
+        <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+        <path d="m3.3 7 8.7 5 8.7-5" />
+        <path d="M12 22V12" />
+      </svg>
+    </span>
+    <span class="sidebar__wordmark">
+      <span class="sidebar__name">NexChain</span>
+      <span class="sidebar__tagline">Supply Chain Co-Pilot</span>
+    </span>
+    <button
+      type="button"
+      class="sidebar__collapse"
+      (click)="toggleCollapsed()"
+      [attr.aria-expanded]="!collapsed()"
+      [attr.aria-label]="collapsed() ? 'Expand navigation' : 'Collapse navigation'"
+      [title]="collapsed() ? 'Expand navigation' : 'Collapse navigation'"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="m11 17-5-5 5-5" />
+        <path d="m18 17-5-5 5-5" />
+      </svg>
+    </button>
   </div>
 
-  <nav class="sidebar__nav">
-    <a class="sidebar__link" routerLink="/chat" routerLinkActive="sidebar__link--active">
-      Chat
-    </a>
-    <a class="sidebar__link" routerLink="/history" routerLinkActive="sidebar__link--active">
-      History
-    </a>
-    @if (authService.currentUser()?.role === 'ADMIN') {
-      <a class="sidebar__link" routerLink="/audit" routerLinkActive="sidebar__link--active">
-        Audit
+  <!-- ── Navigation ─────────────────────────────────────────────────────── -->
+  <p class="sidebar__section-label">Workspace</p>
+
+  <nav class="sidebar__nav" aria-label="Main" [style.--nav-active]="activeIndex()">
+    <!-- Single indicator that slides between items, rather than one per item. -->
+    <span class="sidebar__indicator" [class.is-hidden]="activeIndex() < 0" aria-hidden="true"></span>
+
+    @for (item of navItems(); track item.path; let i = $index) {
+      <a
+        class="sidebar__link"
+        [routerLink]="item.path"
+        routerLinkActive="sidebar__link--active"
+        (isActiveChange)="onActiveChange(i, $event)"
+        [title]="collapsed() ? item.label : null"
+      >
+        <span class="sidebar__icon" aria-hidden="true">
+          @switch (item.icon) {
+            @case ('chat') {
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            }
+            @case ('history') {
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+                <path d="M12 7v5l4 2" />
+              </svg>
+            }
+            @case ('audit') {
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+                <path d="m9 12 2 2 4-4" />
+              </svg>
+            }
+          }
+        </span>
+        <span class="sidebar__label">{{ item.label }}</span>
       </a>
     }
   </nav>
 
+  <!-- ── Profile capsule (§7A) ──────────────────────────────────────────── -->
   <div class="sidebar__footer">
-    <span class="sidebar__user">Signed in as {{ authService.currentUser()?.username ?? 'Unknown' }}</span>
-    <span class="sidebar__status" [class]="'sidebar__status--' + backendStatus()">
-      @switch (backendStatus()) {
-        @case ('checking') { Backend: checking... }
-        @case ('up') { Backend: connected }
-        @case ('unreachable') { Backend: unreachable }
-      }
-    </span>
-    <button type="button" class="sidebar__logout" (click)="onLogout()">Log out</button>
+    <div class="sidebar__profile">
+      <div class="sidebar__identity">
+        <span class="sidebar__avatar" aria-hidden="true">{{ initial() }}</span>
+        <span class="sidebar__identity-text">
+          <span class="sidebar__user">{{ authService.currentUser()?.username ?? 'Unknown' }}</span>
+          <span class="sidebar__role">{{ authService.currentUser()?.role ?? 'Guest' }}</span>
+        </span>
+      </div>
+
+      <div class="sidebar__system">
+        <span
+          class="sidebar__status"
+          [class]="'sidebar__status--' + backendStatus()"
+          [title]="'Backend: ' + statusLabel()"
+        >
+          <span class="sidebar__led" aria-hidden="true"></span>
+          <span class="sidebar__status-text">{{ statusLabel() }}</span>
+        </span>
+
+        <button
+          type="button"
+          class="sidebar__logout"
+          (click)="onLogout()"
+          aria-label="Log out"
+          title="Log out"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <path d="m16 17 5-5-5-5" />
+            <path d="M21 12H9" />
+          </svg>
+          <span class="sidebar__logout-text">Log out</span>
+        </button>
+      </div>
+    </div>
   </div>
 </aside>

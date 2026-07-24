@@ -1,31 +1,42 @@
+// Error and warning share one shape and differ only in hue — they are the same
+// kind of message at two severities, and previously diverged in radius, tint
+// and weight for no reason.
+//
+// Enclosed 1px border rather than a thick left rail: the rail was a third way
+// of drawing an inline message, competing with the .notice banner used on the
+// Chat, History and Audit pages. Same tint, same radius, quieter — these sit
+// inside an assistant card, so they should not out-shout the answer above them.
+.error,
+.warnings {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid;
+  border-radius: var(--radius-chip);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+}
+
 .error {
-  border-left: 3px solid var(--color-danger);
-  background: rgba(198, 40, 40, 0.08);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  padding: 8px 10px;
+  border-color: var(--color-border-danger);
+  background: var(--color-status-danger-bg);
 }
 
 .error__item {
-  font-size: 12.5px;
-  color: var(--color-danger);
   margin: 0;
   font-weight: 600;
+  color: var(--color-status-danger-strong);
 }
 
 .warnings {
-  border-left: 3px solid var(--color-warning);
-  background: rgba(181, 114, 10, 0.08);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  padding: 8px 10px;
+  border-color: var(--color-border-warning);
+  background: var(--color-status-warning-bg);
 }
 
 .warnings__item {
-  font-size: 12.5px;
-  color: var(--color-warning);
   margin: 0;
+  color: var(--color-status-warning-strong);
 
   & + & {
-    margin-top: 4px;
+    margin-top: var(--space-2xs);
   }
 }
 
@@ -33,23 +44,25 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  font-size: 11px;
+  gap: var(--space-xs) var(--space-sm);
+  font-size: var(--text-overline);
+  line-height: var(--text-overline--line-height);
   color: var(--color-text-muted);
 }
 
 .metadata__partial {
-  display: inline-block;
-  padding: 1px 7px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  background: rgba(181, 114, 10, 0.14);
-  color: var(--color-warning);
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-3xs) var(--space-xs);
+  border-radius: var(--radius-chip);
+  font-size: var(--text-overline);
+  font-weight: 600;
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-strong);
 }
 
 .metadata__trace {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -1,54 +1,81 @@
 <div class="chat-page">
-  <section class="chat-page__conversation">
-    <div class="chat-page__messages">
-      @if (isRestoring()) {
-        <div class="chat-loading" role="status" aria-live="polite">
-          <span class="chat-loading__dot"></span>
-          Restoring conversation...
-        </div>
-      } @else if (messages().length === 0) {
-        <div class="chat-page__empty">
-          <h2>Ask a supply chain question</h2>
-          <p>
-            This co-pilot answers questions about orders, shipments, inventory, SLA policy, and
-            reports — pick a suggested question on the right, or type your own below.
-          </p>
-        </div>
+  <section class="chat-page__conversation panel">
+    <header class="chat-page__header">
+      <div>
+        <h1 class="chat-page__heading">NexChain</h1>
+        <p class="chat-page__subheading">Orders · Shipments · Inventory · SLA policy · Reports</p>
+      </div>
+      @if (isOffline()) {
+        <span class="chat-page__offline" role="status">
+          <span class="chat-page__offline-dot" aria-hidden="true"></span>
+          You're offline
+        </span>
       }
+    </header>
 
-      @for (message of messages(); track message.id) {
-        @switch (message.kind) {
-          @case ('user') {
-            <app-user-message [text]="message.text" [timestamp]="message.timestamp" />
-          }
-          @case ('assistant') {
-            <app-assistant-response [response]="message.response" />
-          }
-          @case ('error') {
-            <div class="chat-error" role="alert">
-              <p>{{ message.message }}</p>
-              <button type="button" class="chat-error__retry" (click)="retry(message.retryText, message.restoreId)">
-                Retry
-              </button>
-            </div>
+    <div class="chat-page__messages">
+      <div class="chat-page__column">
+        @if (isRestoring()) {
+          <div class="chat-loading" role="status" aria-live="polite">
+            <span class="chat-loading__dots" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </span>
+            Restoring conversation...
+          </div>
+        } @else if (messages().length === 0) {
+          <div class="chat-page__empty">
+            <div class="orb chat-page__orb" aria-hidden="true"></div>
+            <h2>Ask a supply chain question</h2>
+            <p>
+              This co-pilot answers questions about orders, shipments, inventory, SLA policy, and
+              reports — pick a suggested question on the right, or type your own below.
+            </p>
+          </div>
+        }
+
+        @for (message of messages(); track message.id) {
+          @switch (message.kind) {
+            @case ('user') {
+              <app-user-message [text]="message.text" [timestamp]="message.timestamp" />
+            }
+            @case ('assistant') {
+              <app-assistant-response [response]="message.response" />
+            }
+            @case ('error') {
+              <div class="notice notice--error" role="alert">
+                <svg class="notice__icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <circle cx="10" cy="10" r="7.25" stroke="currentColor" stroke-width="1.5" />
+                  <path d="M10 6.25v4.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                  <circle cx="10" cy="13.5" r="0.9" fill="currentColor" />
+                </svg>
+                <p>{{ message.message }}</p>
+                <button type="button" class="notice__action" (click)="retry(message.retryText, message.restoreId)">
+                  Retry
+                </button>
+              </div>
+            }
           }
         }
-      }
 
-      @if (isLoading()) {
-        <div class="chat-loading" role="status" aria-live="polite">
-          <span class="chat-loading__dot"></span>
-          {{ loadingText() }}
-        </div>
-      }
+        @if (isLoading()) {
+          <div class="chat-loading" role="status" aria-live="polite">
+            <span class="chat-loading__dots" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </span>
+            {{ loadingText() }}
+          </div>
+        }
 
-      <div #scrollAnchor></div>
+        <div #scrollAnchor></div>
+      </div>
     </div>
 
-    <app-chat-input [disabled]="isLoading() || isRestoring()" (send)="onSend($event)"></app-chat-input>
+    <div class="chat-page__composer">
+      <app-chat-input [disabled]="isLoading() || isRestoring()" (send)="onSend($event)"></app-chat-input>
+    </div>
   </section>
 
-  <aside class="chat-page__suggestions">
+  <aside class="chat-page__suggestions panel">
     <app-suggested-questions (questionSelected)="onSend($event)"></app-suggested-questions>
   </aside>
 </div>

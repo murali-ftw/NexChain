@@ -175,7 +175,7 @@ describe('ChatPageComponent', () => {
     expect(component.isLoading()).toBe(false);
     expect(component.messages()[1].kind).toBe('error');
     expect(el.textContent).toContain('Unable to retrieve the response. Please try again.');
-    expect(el.querySelector('.chat-error__retry')).toBeTruthy();
+    expect(el.querySelector('.notice__action')).toBeTruthy();
 
     // Page must still be usable — another message can be sent.
     component.onSend('Show delayed orders from Chennai warehouse.');

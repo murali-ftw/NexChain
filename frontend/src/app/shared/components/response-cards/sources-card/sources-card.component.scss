@@ -1,39 +1,47 @@
 .sources {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-xs);
 }
 
+// Tinted fills rather than the old saturated 1px outlines: a row of six
+// hard-bordered chips fought the glass surface for attention. Same chip
+// geometry as .sla-badge and <app-badge> — one badge shape app-wide.
 .source-badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  font-size: 11px;
-  font-weight: 700;
+  padding: var(--space-3xs) var(--space-xs);
+  border-radius: var(--radius-chip);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+  font-weight: 600;
   letter-spacing: 0.02em;
-  background: var(--color-bg);
-  color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
+  background: var(--color-badge-na-bg);
+  color: var(--color-badge-na-text);
+  white-space: nowrap;
 
   &--db {
-    color: var(--color-primary);
-    border-color: var(--color-primary);
+    background: var(--color-nav-active-bg);
+    color: var(--color-text-accent);
   }
 
   &--api {
-    color: var(--color-success);
-    border-color: var(--color-success);
+    background: var(--color-status-success-bg);
+    color: var(--color-status-success-strong);
   }
 
   &--kb {
-    color: var(--color-warning);
-    border-color: var(--color-warning);
+    background: var(--color-status-warning-bg);
+    color: var(--color-status-warning-strong);
   }
 
+  // Document citations are content, not taxonomy — they read as quiet labels
+  // so the three tool badges stay the scannable part of the row.
   &--doc {
+    max-width: 240px;
     font-weight: 500;
-    text-transform: none;
     letter-spacing: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }

@@ -1,11 +1,155 @@
+// Floating prompt pod (design_system.md §7E): tactile context button on the
+// left, borderless field in the centre, dark iridescent send on the right.
 .chat-input {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border-glass-light);
+  border-radius: var(--radius-card);
+  background: var(--color-glass-card);
+  /* doc section 7E specifies 16px for this exact pod, distinct from the
+     sm/md/lg canonical scale */
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-glass-elevation-2);
+  transition:
+    box-shadow 200ms var(--ease-spring),
+    border-color 200ms var(--ease-spring);
+
+  &:focus-within {
+    border-color: var(--color-border-focus-ring);
+    box-shadow:
+      var(--shadow-glass-elevation-2),
+      var(--shadow-focus-ring);
+  }
+
+  &--dragging {
+    border-color: var(--color-text-accent);
+    box-shadow:
+      var(--shadow-glass-elevation-2),
+      0 0 0 3px rgba(37, 99, 235, 0.25);
+  }
+}
+
+.chat-input__row {
   display: flex;
   align-items: flex-end;
   gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+}
+
+// --- Attachment chips -----------------------------------------------------
+.chat-input__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat-input__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 5px 6px 5px 9px;
+  border: 1px solid var(--color-border-glass-subtle);
+  border-radius: var(--radius-chip);
+  background: var(--color-glass-input);
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  animation: chip-in 200ms var(--ease-spring) both;
+}
+
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.chat-input__chip-icon {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.chat-input__chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-input__chip-remove {
+  flex-shrink: 0;
+  padding: 0 4px;
+  border: none;
+  border-radius: var(--radius-chip);
+  background: none;
+  color: var(--color-text-muted);
+  font-size: var(--text-overline);
+  line-height: 1;
+  transition: color var(--duration-press) var(--ease-spring);
+
+  &:hover {
+    color: var(--color-status-danger);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-focus-ring);
+    outline-offset: 1px;
+  }
+}
+
+// --- Tactile spherical "+" context button (§7D) ---------------------------
+.chat-input__context {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 50% 22%, #4a525c 0%, var(--color-action-tactile-gray) 42%, #14171c 100%);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  box-shadow: var(--shadow-tactile-3d);
+  transition:
+    transform 150ms var(--ease-spring),
+    box-shadow 150ms var(--ease-spring);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.32), inset 0 2px 3px rgba(255, 255, 255, 0.55);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px) scale(0.97);
+    box-shadow: 0 4px 10px -3px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(0, 0, 0, 0.35);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-focus-ring);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.chat-input__file {
+  display: none;
 }
 
 .chat-input__label {
@@ -17,20 +161,25 @@
   white-space: nowrap;
 }
 
+// --- Field ----------------------------------------------------------------
 .chat-input__field {
   flex: 1;
   resize: none;
   border: none;
   outline: none;
-  max-height: 120px;
-  min-height: 22px;
-  line-height: 1.4;
-  color: var(--color-text);
+  padding: 9px 2px;
+  max-height: 168px;
+  min-height: 40px;
+  line-height: var(--text-body--line-height);
+  font-size: var(--text-body);
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
   background: transparent;
+  // No height transition: autoGrow() writes height on every keystroke, so
+  // transitioning it animates layout per character and lags the caret.
 
-  &:focus-visible {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 2px;
+  &::placeholder {
+    color: var(--color-text-muted);
   }
 
   &:disabled {
@@ -39,27 +188,124 @@
   }
 }
 
+// --- Premium send button --------------------------------------------------
 .chat-input__send {
+  position: relative;
   flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
-  border-radius: var(--radius-sm);
-  background: var(--color-primary);
+  border-radius: 9999px;
+  background: var(--color-action-primary-dark);
   color: #fff;
-  font-weight: 600;
-  padding: 8px 18px;
+  isolation: isolate;
+  transition:
+    transform 150ms var(--ease-spring),
+    box-shadow 150ms var(--ease-spring),
+    background 150ms var(--ease-spring);
+
+  &-glow {
+    position: absolute;
+    inset: -2px;
+    z-index: -1;
+    border-radius: inherit;
+    background: var(--background-image-spectrum);
+    opacity: 0;
+    filter: blur(5px);
+    transition: opacity 200ms var(--ease-spring);
+  }
+
+  &-icon {
+    width: 18px;
+    height: 18px;
+  }
 
   &:hover:not(:disabled) {
-    background: var(--color-primary-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-iridescent-aura);
+
+    .chat-input__send-glow {
+      opacity: 0.95;
+    }
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0) scale(0.96);
   }
 
   &:focus-visible {
-    outline: 2px solid var(--color-primary);
+    outline: 2px solid var(--color-border-focus-ring);
     outline-offset: 2px;
   }
 
   &:disabled {
-    background: var(--color-border);
+    background: var(--color-border-glass-subtle);
     color: var(--color-text-muted);
     cursor: not-allowed;
+  }
+}
+
+// --- Hint + dropzone ------------------------------------------------------
+.chat-input__hint {
+  padding-left: 2px;
+  font-size: var(--text-overline);
+  color: var(--color-text-muted);
+
+  kbd {
+    padding: 1px 5px;
+    border: 1px solid var(--color-border-glass-subtle);
+    border-radius: var(--radius-chip);
+    background: var(--color-glass-input);
+    font-family: var(--font-mono);
+    font-size: inherit;
+    color: var(--color-text-secondary);
+  }
+}
+
+.chat-input__dropzone {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-card);
+  border: 1.5px dashed var(--color-text-accent);
+  background: rgba(235, 241, 255, 0.82);
+  backdrop-filter: blur(var(--blur-sm));
+  -webkit-backdrop-filter: blur(var(--blur-sm));
+  font-size: var(--text-body);
+  font-weight: 600;
+  color: var(--color-text-accent);
+  pointer-events: none;
+  animation: dropzone-in 200ms var(--ease-spring) both;
+}
+
+@keyframes dropzone-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .chat-input__hint {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-input,
+  .chat-input__chip,
+  .chat-input__field,
+  .chat-input__context,
+  .chat-input__send,
+  .chat-input__dropzone {
+    transition: none;
+    animation: none;
   }
 }

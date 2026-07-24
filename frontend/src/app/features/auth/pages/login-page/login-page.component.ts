@@ -16,6 +16,7 @@ export class LoginPageComponent {
 
   readonly submitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly showPassword = signal(false);
 
   constructor(
     private readonly authService: AuthService,

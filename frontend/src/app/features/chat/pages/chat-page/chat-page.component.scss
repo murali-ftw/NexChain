@@ -1,6 +1,10 @@
+// Chat shell: conversation canvas (flex) + suggestion dock (fixed), per the
+// grid in design_system.md §5. Both float over the ambient mesh.
 .chat-page {
   display: flex;
+  gap: var(--space-md);
   height: 100%;
+  animation: var(--animate-page-in);
 }
 
 .chat-page__conversation {
@@ -8,107 +12,204 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  padding: 24px;
-  gap: 16px;
+  overflow: hidden;
 }
 
+// --- Header ---------------------------------------------------------------
+.chat-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 18px 28px;
+  border-bottom: 1px solid var(--color-border-glass-subtle);
+}
+
+.chat-page__heading {
+  font-size: var(--text-heading);
+  line-height: var(--text-heading--line-height);
+  font-weight: var(--text-heading--font-weight);
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.chat-page__subheading {
+  margin-top: 3px;
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+}
+
+.chat-page__offline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  flex-shrink: 0;
+  padding: 6px var(--space-sm);
+  border-radius: 9999px;
+  background: var(--color-status-danger-bg);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--color-status-danger);
+}
+
+.chat-page__offline-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: var(--animate-pulse-led);
+}
+
+// --- Message stream -------------------------------------------------------
 .chat-page__messages {
   flex: 1;
   overflow-y: auto;
+  padding: 28px;
+  scroll-behavior: smooth;
+}
+
+// Readable measure — the stream stays centred no matter how wide the canvas is.
+.chat-page__column {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 18px;
+  width: 100%;
+  max-width: 780px;
+  min-height: 100%;
+  margin: 0 auto;
 }
 
+// --- Empty state (§7F) ----------------------------------------------------
 .chat-page__empty {
   margin: auto;
-  max-width: 420px;
+  max-width: 460px;
   text-align: center;
-  color: var(--color-text-muted);
+  padding: var(--space-lg) 0;
+  animation: var(--animate-card-in);
 
   h2 {
-    color: var(--color-text);
-    font-size: 18px;
-    margin-bottom: 8px;
+    font-size: var(--text-display);
+    line-height: var(--text-display--line-height);
+    font-weight: var(--text-display--font-weight);
+    color: var(--color-text-primary);
+    letter-spacing: -0.02em;
+    margin-bottom: var(--space-xs);
   }
 
   p {
-    font-size: 13px;
-    line-height: 1.5;
+    font-size: var(--text-body);
+    line-height: 1.6;
+    color: var(--color-text-secondary);
   }
 }
 
-.chat-error {
-  align-self: flex-start;
-  max-width: 80%;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: rgba(198, 40, 40, 0.08);
-  border: 1px solid var(--color-danger);
-  border-radius: var(--radius-md);
-  padding: 10px 14px;
-
-  p {
-    font-size: 13px;
-    color: var(--color-danger);
-    margin: 0;
-  }
+// Floating frosted companion orb (§7F). The look and float come from the
+// shared .orb; only its size on this screen is set here.
+.chat-page__orb {
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 22px;
 }
 
-.chat-error__retry {
-  flex-shrink: 0;
-  border: 1px solid var(--color-danger);
-  background: transparent;
-  color: var(--color-danger);
-  border-radius: var(--radius-sm);
-  padding: 4px 12px;
-  font-size: 12.5px;
-  font-weight: 600;
-
-  &:hover {
-    background: var(--color-danger);
-    color: #fff;
-  }
-}
-
+// --- Typing indicator -----------------------------------------------------
 .chat-loading {
   align-self: flex-start;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--color-text-muted);
-  padding: 6px 4px;
+  gap: 10px;
+  padding: 11px var(--space-md);
+  background: var(--color-glass-card);
+  border: 1px solid var(--color-border-glass-light);
+  border-radius: var(--radius-card);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
+  box-shadow: var(--shadow-glass-panel);
+  font-size: var(--text-body);
+  color: var(--color-text-secondary);
+  animation: var(--animate-card-in);
 }
 
-.chat-loading__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--color-primary);
-  animation: chat-loading-pulse 1s ease-in-out infinite;
+.chat-loading__dots {
+  display: inline-flex;
+  gap: var(--space-2xs);
+
+  span {
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: var(--color-text-accent);
+    animation: typing-bounce 1.2s ease-in-out infinite;
+
+    &:nth-child(2) {
+      animation-delay: 0.15s;
+    }
+
+    &:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+  }
 }
 
-@keyframes chat-loading-pulse {
+@keyframes typing-bounce {
   0%,
+  60%,
   100% {
     opacity: 0.3;
+    transform: translateY(0);
   }
-  50% {
+  30% {
     opacity: 1;
+    transform: translateY(-4px);
   }
 }
 
+// --- Composer -------------------------------------------------------------
+.chat-page__composer {
+  padding: 0 28px 22px;
+}
+
+// --- Suggestion dock ------------------------------------------------------
 .chat-page__suggestions {
   width: var(--suggestions-width);
   flex-shrink: 0;
-  border-left: 1px solid var(--color-border);
-  background: var(--color-surface);
+  overflow: hidden;
 }
 
 @media (max-width: 1100px) {
   .chat-page__suggestions {
     display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .chat-page__header {
+    padding: 14px var(--space-md);
+  }
+
+  .chat-page__messages {
+    padding: var(--space-md);
+  }
+
+  .chat-page__composer {
+    padding: 0 var(--space-md) var(--space-md);
+  }
+
+  .chat-page__empty h2 {
+    font-size: var(--text-heading);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-page,
+  .chat-page__empty,
+  .chat-page__orb,
+  .chat-loading,
+  .chat-loading__dots span,
+  .chat-page__offline-dot {
+    animation: none;
+  }
+
+  .chat-page__messages {
+    scroll-behavior: auto;
   }
 }

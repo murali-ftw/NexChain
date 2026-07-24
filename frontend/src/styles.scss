@@ -1,22 +1,296 @@
-/* Global styles — Supply Chain Intelligence Co-Pilot */
+/* Global styles — NexChain */
+@import 'tailwindcss';
 
+/* =========================================================================
+   AETHERIA GLASS & CYBER-TACTILE ACCENT — design system tokens
+   Source of truth: docs/design_system.md. Every value below is copied from
+   that doc; if the two disagree, fix this file, not the other way round.
+   Tailwind's @theme emits these as real :root custom properties, so they
+   double as plain CSS variables for use outside Tailwind utility classes.
+   `static` because components consume these via var(--token) in plain
+   SCSS (this codebase's convention) — without it Tailwind only emits a
+   variable when it also finds a matching utility class in a template, which
+   would silently drop anything never used as a class name.
+   Names are namespaced (glass-*, action-*, badge-*, nav-*, chip/control/
+   card/shell radii) so they read as roles rather than raw values.
+
+   This is now the only palette in the app: the flatter legacy set that used
+   to sit below (--color-surface, --color-border, --radius-sm/md …) is gone,
+   along with the --color-text-muted it was silently shadowing.
+   ========================================================================= */
+@theme static {
+  /* Color — ambient mesh background gradient stops */
+  --color-mesh-start: #ebf1ff;
+  --color-mesh-mid: #f5ecff;
+  --color-mesh-end: #f8faf9;
+
+  /* Color — glass surfaces.
+     `-hover` is the §7C table-row wash; `-bright` the §7B card-hover brighten.
+     Both were being written as raw rgba() in five places before this. */
+  --color-glass-canvas: rgba(255, 255, 255, 0.65);
+  --color-glass-card: rgba(255, 255, 255, 0.82);
+  --color-glass-input: rgba(255, 255, 255, 0.9);
+  --color-glass-hover: rgba(255, 255, 255, 0.4);
+  --color-glass-bright: rgba(255, 255, 255, 0.95);
+  --color-glass-header: rgba(241, 245, 249, 0.6);
+
+  /* Color — glass borders. `-accent` / `-danger` are the engaged-state edges
+     (card hover, destructive hover); they were three near-identical alphas
+     (0.35/0.4/0.45) across history, chat and the suggestion dock before. */
+  --color-border-glass-light: rgba(255, 255, 255, 0.8);
+  --color-border-glass-subtle: rgba(200, 210, 230, 0.35);
+  --color-border-focus-ring: #3b82f6;
+  --color-border-accent: rgba(59, 130, 246, 0.4);
+  --color-border-danger: rgba(239, 68, 68, 0.4);
+  --color-border-warning: rgba(245, 158, 11, 0.45);
+
+  /* Color — text */
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+  --color-text-accent: #2563eb;
+  /* Text on the dark tactile surfaces (user message, SQL block, primary
+     button). Was #e2e8f0 in two places and #f8fafc in a third. */
+  --color-text-on-dark: #e2e8f0;
+
+  /* Color — primary action / tactile controls */
+  --color-action-primary-dark: #0f1117;
+  --color-action-tactile-gray: #333a42;
+
+  /* Color — status (section 2: SLA breach / connected indicators).
+     `-strong` is the AA-contrast text shade of each status, for status-coloured
+     *text* on a tinted background — the base hue is a fill/icon colour and does
+     not carry enough contrast at body size. Warning has no entry in section 2's
+     table (it only names breach + connected); amber-500 is added here on the
+     same 0.1-alpha-tint pattern so "at risk" is not left inventing its own. */
+  --color-status-danger: #ef4444;
+  --color-status-danger-bg: rgba(239, 68, 68, 0.1);
+  --color-status-danger-strong: #b91c1c;
+  --color-status-success: #10b981;
+  --color-status-success-bg: rgba(16, 185, 129, 0.1);
+  --color-status-success-strong: #047857;
+  --color-status-warning: #f59e0b;
+  --color-status-warning-bg: rgba(245, 158, 11, 0.12);
+  --color-status-warning-strong: #b45309;
+
+  /* Color — audit table badges (section 7C; distinct shades from status above) */
+  --color-badge-breached-text: #dc2626;
+  --color-badge-breached-bg: rgba(239, 68, 68, 0.12);
+  --color-badge-na-text: #64748b;
+  --color-badge-na-bg: rgba(148, 163, 184, 0.12);
+
+  /* Color — left nav (section 7A) */
+  --color-nav-active-bg: rgba(59, 130, 246, 0.12);
+  --color-nav-active-text: #2563eb;
+  --color-nav-inactive-text: #64748b;
+  --color-nav-hover-bg: rgba(255, 255, 255, 0.5);
+
+  /* Background images — mesh canvas + spectrum glow gradient */
+  --background-image-mesh: linear-gradient(135deg, #ebf1ff 0%, #f5ecff 45%, #f8faf9 100%);
+  --background-image-spectrum: linear-gradient(90deg, #ff007a, #00f0ff, #ffe600);
+
+  /* Typography — fonts (overrides Tailwind's default sans/mono globally) */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Typography — role-based type scale (section 3) */
+  --text-display: 28px;
+  --text-display--line-height: 1.3;
+  --text-display--font-weight: 700;
+
+  --text-heading: 22px;
+  --text-heading--line-height: 1.3;
+  --text-heading--font-weight: 600;
+
+  --text-card-header: 15px;
+  --text-card-header--line-height: 1.4;
+  --text-card-header--font-weight: 600;
+
+  --text-body: 14px;
+  --text-body--line-height: 1.5;
+  --text-body--font-weight: 400;
+
+  --text-caption: 12px;
+  --text-caption--line-height: 1.4;
+  --text-caption--font-weight: 500;
+
+  --text-code: 13px;
+  --text-code--line-height: 1.6;
+  --text-code--font-weight: 400;
+
+  /* Typography — overline / eyebrow. Not a row in section 3's table, but the
+     uppercase letter-spaced micro-label it describes for table headers (§7C)
+     is the same treatment used by nav section labels, card group headings and
+     metadata keys. It existed in six places at 10/10.5/11/11.5/12px with three
+     different letter-spacings; one role ends that drift. */
+  --text-overline: 11px;
+  --text-overline--line-height: 1.4;
+  --text-overline--font-weight: 600;
+  --tracking-overline: 0.06em;
+
+  /* Border radius — named by component category (section 6), not t-shirt size,
+     so a radius is chosen by what it wraps rather than by how big it looks */
+  --radius-chip: 8px; /* badges / tags / chips */
+  --radius-control: 12px; /* inputs / buttons / table rows */
+  --radius-card: 20px; /* cards / floating panels */
+  --radius-shell: 28px; /* main app shell containers */
+  /* full circle/pill: use Tailwind's native `rounded-full` */
+
+  /* Blur — Tailwind's default --blur-sm (8px) / --blur-md (12px) already match;
+     only --blur-lg (native 16px) needs raising to the spec's 20px */
+  --blur-lg: 20px;
+
+  /* Shadows — glass elevation + tactile + iridescent glow (section 6) */
+  --shadow-glass-panel: 0 8px 32px 0 rgba(31, 38, 135, 0.05), inset 0 1px 1px 0 rgba(255, 255, 255, 0.8);
+  --shadow-glass-elevation-2: 0 12px 40px -8px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.6);
+  --shadow-tactile-3d: 0 8px 20px -4px rgba(0, 0, 0, 0.25), inset 0 2px 3px rgba(255, 255, 255, 0.5);
+  --shadow-iridescent-aura: 0 0 20px 2px rgba(138, 43, 226, 0.35);
+
+  /* Shadows — derived. Section 6 names four elevations; these are the three
+     recurring *accent* glows that were being hand-written per component
+     (blue card-hover bloom, dark solid drop, danger solid drop). Keeping them
+     as tokens is what stops each page inventing its own offset/alpha. */
+  --shadow-accent-glow: 0 6px 26px -10px rgba(59, 130, 246, 0.45);
+  --shadow-solid-dark: 0 8px 20px -6px rgba(15, 23, 42, 0.28);
+  --shadow-solid-danger: 0 8px 20px -6px rgba(239, 68, 68, 0.5);
+  /* Focus ring, as a shadow — for controls that cannot use `outline` because
+     they are clipped by an overflow:hidden ancestor or carry their own glow. */
+  --shadow-focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.35);
+
+  /* Animation — spring easing (section 8) + durations already covered by
+     Tailwind's default duration-150/200/300 scale, so no overrides there */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Animation — reusable keyframes named in section 7 (status LED pulse,
+     loading halo pulse, skeleton shimmer).
+     These loop, so they use ease-in-out, not --ease-spring: the spring curve is
+     a hard ease-OUT, and on a symmetric 0%/50%/100% cycle it snaps to the
+     midpoint and hangs there instead of breathing. --ease-spring stays for
+     one-shot entrances and hover transitions, where easing out is the point. */
+  --animate-pulse-led: pulse-led 2s ease-in-out infinite;
+  --animate-glow-pulse: glow-pulse 1.8s ease-in-out infinite;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+
+  /* Animation — shared entrances. `page-in` and `card-in` were each defined
+     twice (chat + history) with different distances, and the floating orb
+     three times with three float heights. One definition each: a page settles,
+     an item rises, an orb breathes — the same way on every screen. */
+  --animate-page-in: page-in 300ms var(--ease-spring) both;
+  --animate-card-in: card-in 320ms var(--ease-spring) both;
+  --animate-orb-float: orb-float 6s ease-in-out infinite;
+
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes card-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes orb-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
+
+  @keyframes pulse-led {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.4;
+    }
+  }
+  @keyframes glow-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 20px 2px rgba(138, 43, 226, 0.35);
+    }
+    50% {
+      box-shadow: 0 0 32px 6px rgba(138, 43, 226, 0.55);
+    }
+  }
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+}
+
+/* Gradient-border glow for the primary iridescent action button (section 7D).
+   A genuine gradient border isn't expressible as a themeable Tailwind utility
+   (border-image/mask are needed), so it gets one small reusable utility class. */
+@layer utilities {
+  .ring-spectrum-glow {
+    position: relative;
+    background-clip: padding-box;
+    border: 1px solid transparent;
+  }
+  .ring-spectrum-glow::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    margin: -1px;
+    border-radius: inherit;
+    background-image: var(--background-image-spectrum);
+  }
+}
+
+/* =========================================================================
+   Spacing scale (section 4) — 8pt grid with 4pt micro-steps.
+   The one part of the spec that had no tokens, which is exactly why padding
+   drifted to 3/5/7/9/11/13/15/18/22/26px across the pages. Every new value
+   comes from here.
+
+   Plain :root rather than @theme: `--spacing` is a reserved Tailwind namespace
+   that drives the whole `p-*`/`gap-*` utility scale, and redefining it would
+   rewrite those utilities app-wide. These are consumed as var() in SCSS only.
+
+   The legacy palette that used to live in this block (--color-surface,
+   --color-border, --color-danger, --radius-sm/md …) is gone: it was a second,
+   flatter design system competing with the one above, and its --color-text-muted
+   (#5a6472) *shadowed* the design-system token of the same name (#94a3b8) for
+   every component in the app, since it was declared later. Its last consumers
+   (the audit page and the structured response cards) now use the tokens above.
+   ========================================================================= */
 :root {
-  --color-bg: #f5f6f8;
-  --color-surface: #ffffff;
-  --color-border: #e0e3e8;
-  --color-text: #1c2430;
-  --color-text-muted: #5a6472;
-  --color-primary: #2f5fed;
-  --color-primary-hover: #2549c2;
-  --color-success: #1f8a4c;
-  --color-warning: #b5720a;
-  --color-danger: #c62828;
+  --space-3xs: 2px;
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
 
-  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
-    sans-serif;
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --sidebar-width: 240px;
+  /* Durations (section 8) — press, hover/focus shift, modal expansion. */
+  --duration-press: 150ms;
+  --duration-shift: 200ms;
+  --duration-expand: 300ms;
+
+  // The sidebar owns its own width now (it animates between expanded and collapsed).
   --suggestions-width: 280px;
 }
 
@@ -33,11 +307,12 @@ body {
 
 body {
   margin: 0;
-  font-family: var(--font-family);
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--color-text);
-  background: var(--color-bg);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
+  color: var(--color-text-primary);
+  background: var(--background-image-mesh);
+  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -64,4 +339,490 @@ select {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* One focus ring for the whole app. `:where()` keeps specificity at zero, so
+   any component rule still overrides it — but nothing has to *remember* to
+   declare one, which is how the audit page's inputs and rows ended up with no
+   visible focus state at all. */
+:where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-border-focus-ring);
+  outline-offset: 2px;
+}
+
+/* =========================================================================
+   Shared component classes.
+
+   These are the patterns that were independently re-implemented on two or
+   three pages each — a secondary glass button, an error notice, an empty
+   state, the floating glass shell — with slightly different padding, radius
+   and easing every time. That divergence is what made the app read as several
+   products rather than one. Defined once here; pages compose them.
+
+   In @layer components so unlayered Angular component styles still win when a
+   page genuinely needs to deviate.
+   ========================================================================= */
+@layer components {
+  /* --- Glass shell -------------------------------------------------------
+     The floating frosted panel every full-page surface sits in (§7A/§7C). */
+  .panel {
+    background: var(--color-glass-canvas);
+    backdrop-filter: blur(var(--blur-lg));
+    -webkit-backdrop-filter: blur(var(--blur-lg));
+    border: 1px solid var(--color-border-glass-light);
+    border-radius: var(--radius-shell);
+    box-shadow: var(--shadow-glass-panel);
+  }
+
+  /* --- Overline / eyebrow ------------------------------------------------ */
+  .overline {
+    font-size: var(--text-overline);
+    line-height: var(--text-overline--line-height);
+    font-weight: var(--text-overline--font-weight);
+    letter-spacing: var(--tracking-overline);
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  /* --- Button hierarchy (§7D) --------------------------------------------
+     Lives here rather than inside button.component.scss so a page can reach
+     for the same primary button on a plain <button> without importing the
+     component — which is what stopped happening, and why the history empty
+     state, the delete confirmation and the login submit were three separately
+     invented dark buttons. <app-button> emits exactly these class names. */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    transition:
+      transform var(--duration-press) var(--ease-spring),
+      box-shadow var(--duration-press) var(--ease-spring),
+      background var(--duration-press) var(--ease-spring);
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+  }
+
+  .btn--primary {
+    height: 44px;
+    padding: 0 var(--space-lg);
+    border-radius: var(--radius-control);
+    background: var(--color-action-primary-dark);
+    color: #fff;
+    box-shadow: var(--shadow-tactile-3d);
+
+    &:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-iridescent-aura), var(--shadow-tactile-3d);
+    }
+
+    &:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+  }
+
+  /* Destructive confirmation — same geometry as primary, danger fill. */
+  .btn--danger {
+    height: 44px;
+    padding: 0 var(--space-lg);
+    border-radius: var(--radius-control);
+    background: var(--color-status-danger);
+    color: #fff;
+    box-shadow: var(--shadow-solid-danger);
+
+    &:hover:not(:disabled) {
+      background: var(--color-badge-breached-text);
+      transform: translateY(-1px);
+    }
+
+    &:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+  }
+
+  .btn--secondary {
+    height: 40px;
+    padding: 0 var(--space-md);
+    border-radius: var(--radius-control);
+    background: var(--color-glass-card);
+    border: 1px solid var(--color-border-glass-subtle);
+    color: var(--color-text-primary);
+    backdrop-filter: blur(var(--blur-sm));
+
+    &:hover:not(:disabled) {
+      background: var(--color-glass-input);
+      transform: translateY(-1px);
+    }
+  }
+
+  .btn--tactile {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 9999px;
+    background: linear-gradient(
+      180deg,
+      var(--color-action-tactile-gray) 0%,
+      var(--color-action-primary-dark) 100%
+    );
+    color: #fff;
+    box-shadow: var(--shadow-tactile-3d);
+
+    &:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    &:active:not(:disabled) {
+      transform: scale(0.95);
+    }
+  }
+
+  /* --- Secondary glass control (§7D "Secondary Actions") -----------------
+     Filter, search, refresh, restore. Light translucent pill, slate border. */
+  .ghost-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs);
+    flex-shrink: 0;
+    height: 40px;
+    padding: 0 var(--space-md);
+    border-radius: var(--radius-control);
+    border: 1px solid var(--color-border-glass-subtle);
+    background: var(--color-glass-card);
+    backdrop-filter: blur(var(--blur-sm));
+    -webkit-backdrop-filter: blur(var(--blur-sm));
+    color: var(--color-text-primary);
+    font-size: var(--text-caption);
+    font-weight: 600;
+    white-space: nowrap;
+    transition:
+      background var(--duration-press) var(--ease-spring),
+      color var(--duration-press) var(--ease-spring),
+      border-color var(--duration-press) var(--ease-spring),
+      transform var(--duration-press) var(--ease-spring),
+      box-shadow var(--duration-press) var(--ease-spring);
+
+    svg {
+      width: 15px;
+      height: 15px;
+      flex-shrink: 0;
+    }
+
+    &:hover:not(:disabled) {
+      background: var(--color-glass-input);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-glass-elevation-2);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  /* Compact variant — inline row actions (restore/delete on a card). */
+  .ghost-btn--sm {
+    height: 32px;
+    padding: 0 var(--space-sm);
+    color: var(--color-text-secondary);
+
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    &:hover:not(:disabled) {
+      background: #fff;
+      color: var(--color-text-accent);
+      border-color: var(--color-border-accent);
+      box-shadow: none;
+    }
+  }
+
+  /* Destructive intent — quiet until hovered, then unmistakable. */
+  .ghost-btn--danger:hover:not(:disabled) {
+    color: var(--color-status-danger-strong);
+    background: var(--color-badge-breached-bg);
+    border-color: var(--color-border-danger);
+  }
+
+  .ghost-btn__icon {
+    color: var(--color-text-secondary);
+  }
+
+  /* --- Glass form control (§7E "Filter Dropdowns & Date Pickers") --------
+     Every text input, select and date picker outside the chat pod. The audit
+     page's filters were 8px-padded 12.5px flat-white boxes with no focus ring
+     against history's 44px glass fields; this is the single treatment. */
+  .glass-input {
+    height: 40px;
+    padding: 0 var(--space-sm);
+    border-radius: var(--radius-control);
+    border: 1px solid var(--color-border-glass-subtle);
+    background: var(--color-glass-input);
+    backdrop-filter: blur(var(--blur-sm));
+    -webkit-backdrop-filter: blur(var(--blur-sm));
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    transition:
+      border-color var(--duration-shift) var(--ease-spring),
+      box-shadow var(--duration-shift) var(--ease-spring);
+
+    &::placeholder {
+      color: var(--color-text-muted);
+    }
+
+    &:focus {
+      outline: none;
+      border-color: var(--color-border-focus-ring);
+      box-shadow: var(--shadow-focus-ring);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  /* Selects need room for the native chevron, dates for the picker glyph. */
+  select.glass-input {
+    padding-right: var(--space-xs);
+    cursor: pointer;
+  }
+
+  /* --- Search field (icon + input + clear) -------------------------------- */
+  .search {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .search__icon {
+    position: absolute;
+    left: 14px;
+    width: 17px;
+    height: 17px;
+    color: var(--color-text-muted);
+    pointer-events: none;
+    transition: color var(--duration-shift) var(--ease-spring);
+  }
+
+  .search__input {
+    width: 100%;
+    height: 44px;
+    padding: 0 40px;
+
+    // The browser's own clear affordance would sit under ours.
+    &::-webkit-search-cancel-button {
+      appearance: none;
+    }
+  }
+
+  // The icon precedes the input in the DOM, so the tint has to come off the wrapper.
+  .search:focus-within .search__icon {
+    color: var(--color-text-accent);
+  }
+
+  .search__clear {
+    position: absolute;
+    right: var(--space-xs);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 9999px;
+    background: rgba(148, 163, 184, 0.16);
+    color: var(--color-text-secondary);
+    transition:
+      background var(--duration-press) var(--ease-spring),
+      color var(--duration-press) var(--ease-spring);
+
+    svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    &:hover {
+      background: rgba(148, 163, 184, 0.3);
+      color: var(--color-text-primary);
+    }
+  }
+
+  /* --- Notice (inline error / warning banner) ---------------------------- */
+  .notice {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+    border-radius: var(--radius-card);
+    border: 1px solid transparent;
+    box-shadow: var(--shadow-glass-panel);
+    animation: var(--animate-card-in);
+
+    p {
+      flex: 1;
+      margin: 0;
+      font-size: var(--text-body);
+      line-height: var(--text-body--line-height);
+    }
+  }
+
+  .notice__icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .notice--error {
+    background: var(--color-status-danger-bg);
+    border-color: var(--color-border-danger);
+
+    p {
+      color: var(--color-status-danger-strong);
+    }
+
+    .notice__icon {
+      color: var(--color-status-danger);
+    }
+  }
+
+  .notice__action {
+    flex-shrink: 0;
+    padding: var(--space-xs) var(--space-sm);
+    border: 1px solid var(--color-border-danger);
+    border-radius: var(--radius-control);
+    background: rgba(255, 255, 255, 0.7);
+    color: var(--color-status-danger-strong);
+    font-size: var(--text-caption);
+    font-weight: 600;
+    transition:
+      background var(--duration-press) var(--ease-spring),
+      color var(--duration-press) var(--ease-spring),
+      transform var(--duration-press) var(--ease-spring);
+
+    &:hover {
+      background: var(--color-status-danger);
+      color: #fff;
+      transform: translateY(-1px);
+    }
+  }
+
+  /* --- Frosted companion orb (§7F) --------------------------------------- */
+  .orb {
+    border-radius: 9999px;
+    background:
+      radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.25) 45%, transparent 62%),
+      linear-gradient(135deg, rgba(255, 0, 122, 0.28), rgba(0, 240, 255, 0.28) 48%, rgba(255, 230, 0, 0.28));
+    box-shadow:
+      var(--shadow-iridescent-aura),
+      inset 0 2px 6px rgba(255, 255, 255, 0.8);
+    animation: var(--animate-orb-float);
+  }
+
+  /* Muted twin — for "nothing matched", which is a neutral outcome, not a
+     celebratory one. The iridescent orb would over-sell an empty filter. */
+  .orb--quiet {
+    background:
+      radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.25) 45%, transparent 62%),
+      linear-gradient(135deg, rgba(148, 163, 184, 0.3), rgba(59, 130, 246, 0.22));
+    box-shadow: inset 0 2px 6px rgba(255, 255, 255, 0.8);
+  }
+
+  /* --- Empty state (§7F) -------------------------------------------------- */
+  .empty {
+    max-width: 420px;
+    margin: var(--space-2xl) auto;
+    text-align: center;
+    animation: var(--animate-card-in);
+  }
+
+  .empty__art {
+    position: relative;
+    width: 132px;
+    height: 132px;
+    margin: 0 auto var(--space-lg);
+    display: grid;
+    place-items: center;
+  }
+
+  .empty__art .orb {
+    position: absolute;
+    inset: 0;
+  }
+
+  .empty__glyph {
+    position: relative;
+    width: 74px;
+    height: 60px;
+    // Glyphs sit on the orb and are drawn in currentColor, so the illustration
+    // is tuned in one place rather than per-SVG alpha.
+    color: rgba(255, 255, 255, 0.9);
+    animation: var(--animate-orb-float);
+  }
+
+  .empty__title {
+    font-size: var(--text-heading);
+    line-height: var(--text-heading--line-height);
+    font-weight: var(--text-heading--font-weight);
+    color: var(--color-text-primary);
+    letter-spacing: -0.01em;
+    margin-bottom: var(--space-xs);
+  }
+
+  .empty__text {
+    font-size: var(--text-body);
+    line-height: 1.6;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-lg);
+  }
+
+  /* --- Screen-reader-only ------------------------------------------------- */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+/* Motion is decoration here — every animation above is an entrance or an
+   ambient float, so honouring the preference costs nothing but the polish. */
+@media (prefers-reduced-motion: reduce) {
+  .notice,
+  .empty,
+  .empty__glyph,
+  .orb {
+    animation: none;
+  }
+
+  .btn:hover,
+  .btn:active,
+  .ghost-btn:hover,
+  .notice__action:hover {
+    transform: none;
+  }
 }

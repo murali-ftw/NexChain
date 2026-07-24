@@ -1,40 +1,74 @@
 <div class="login">
-  <div class="login__card">
-    <div class="login__logo">SC</div>
-    <h1 class="login__title">Supply Chain Intelligence Co-Pilot</h1>
+  <!-- Ambient mesh accent blobs (decorative) -->
+  <div class="login__ambient" aria-hidden="true">
+    <span class="login__blob login__blob--a"></span>
+    <span class="login__blob login__blob--b"></span>
+    <span class="login__blob login__blob--c"></span>
+  </div>
+
+  <div class="login__card" role="dialog" aria-labelledby="login-title">
+    <div class="login__logo" aria-hidden="true">SC</div>
+    <h1 id="login-title" class="login__title">NexChain</h1>
     <p class="login__subtitle">Sign in to ask about orders, shipments, inventory and SLAs.</p>
 
-    <form class="login__form" (submit)="$event.preventDefault(); onSignIn()">
-      <label class="login__label" for="email">Email</label>
-      <input
-        class="login__input"
-        id="email"
-        name="email"
-        type="email"
-        autocomplete="email"
-        placeholder="you@company.com"
-        [(ngModel)]="email"
-        [disabled]="submitting()"
-      />
+    <form class="login__form" novalidate (submit)="$event.preventDefault(); onSignIn()">
+      <div class="login__field">
+        <label class="login__label" for="email">Email</label>
+        <input
+          class="login__input"
+          id="email"
+          name="email"
+          type="email"
+          autocomplete="email"
+          placeholder="you@company.com"
+          [(ngModel)]="email"
+          [disabled]="submitting()"
+          [class.login__input--error]="errorMessage()"
+          [attr.aria-invalid]="errorMessage() ? 'true' : null"
+        />
+      </div>
 
-      <label class="login__label" for="password">Password</label>
-      <input
-        class="login__input"
-        id="password"
-        name="password"
-        type="password"
-        autocomplete="current-password"
-        placeholder="••••••••"
-        [(ngModel)]="password"
-        [disabled]="submitting()"
-      />
+      <div class="login__field">
+        <label class="login__label" for="password">Password</label>
+        <div class="login__input-wrap">
+          <input
+            class="login__input login__input--password"
+            id="password"
+            name="password"
+            [type]="showPassword() ? 'text' : 'password'"
+            autocomplete="current-password"
+            placeholder="••••••••"
+            [(ngModel)]="password"
+            [disabled]="submitting()"
+            [class.login__input--error]="errorMessage()"
+            [attr.aria-invalid]="errorMessage() ? 'true' : null"
+          />
+          <button
+            class="login__reveal"
+            type="button"
+            [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+            [attr.aria-pressed]="showPassword()"
+            (click)="showPassword.set(!showPassword())"
+          >
+            {{ showPassword() ? 'Hide' : 'Show' }}
+          </button>
+        </div>
+      </div>
 
       @if (errorMessage()) {
         <p class="login__error" role="alert">{{ errorMessage() }}</p>
       }
 
       <button class="login__submit" type="submit" [disabled]="submitting()">
-        {{ submitting() ? 'Signing in...' : 'Sign In' }}
+        <span class="login__submit-glow" aria-hidden="true"></span>
+        <span class="login__submit-label">
+          @if (submitting()) {
+            <span class="login__spinner" aria-hidden="true"></span>
+            Signing in…
+          } @else {
+            Sign In
+          }
+        </span>
       </button>
     </form>
   </div>
