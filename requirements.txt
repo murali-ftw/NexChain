@@ -10,7 +10,7 @@ pydantic>=2.9
 # --- Agent orchestration ---
 langgraph>=0.2
 langchain>=0.3
-langchain-core>=0.3
+langchain-core>=1.5.1
 
 # --- MCP tool connectivity ---
 # Floor is the fix version for PYSEC-2026-1617 (DNS rebinding), CVE-2026-52869
