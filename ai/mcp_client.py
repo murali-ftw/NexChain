@@ -30,6 +30,7 @@ import asyncio
 import logging
 import os
 import threading
+import time
 from typing import Any
 
 from mcp import ClientSession
@@ -205,4 +206,19 @@ def call_tool(tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
     tool-layer call already raised, so callers don't need to know MCP is
     involved.
     """
-    return _get_connection().call_tool(tool, arguments)
+    started = time.perf_counter()
+    try:
+        result = _get_connection().call_tool(tool, arguments)
+    except ToolError:
+        logger.warning(
+            "dependency_call dependency=mcp_server tool=%s outcome=failure duration_ms=%.1f",
+            tool,
+            (time.perf_counter() - started) * 1000,
+        )
+        raise
+    logger.info(
+        "dependency_call dependency=mcp_server tool=%s outcome=success duration_ms=%.1f",
+        tool,
+        (time.perf_counter() - started) * 1000,
+    )
+    return result

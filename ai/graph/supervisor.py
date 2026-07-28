@@ -10,10 +10,12 @@ from __future__ import annotations
 
 from ai.agents.intent_classifier.classifier import classify
 from ai.contracts import AgentNode
+from ai.graph.node_logging import log_node_execution
 from ai.graph.retry import call_with_retry
 from ai.graph.state import CoPilotState, CoPilotStateUpdate
 
 
+@log_node_execution(AgentNode.INTENT_CLASSIFIER.value)
 def supervisor_node(state: CoPilotState) -> CoPilotStateUpdate:
     """Classify state['raw_query'] and record intent + sub_intents.
 

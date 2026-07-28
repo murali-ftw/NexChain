@@ -1,5 +1,6 @@
 package com.nexchain.backend.auth.security;
 
+import com.nexchain.backend.common.logging.RequestCorrelationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -48,6 +49,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
+            RequestCorrelationFilter requestCorrelationFilter,
             JwtAuthenticationFilter jwtAuthenticationFilter,
             RestAuthenticationEntryPoint authenticationEntryPoint,
             RestAccessDeniedHandler accessDeniedHandler)
@@ -67,7 +69,16 @@ public class SecurityConfig {
                         ex ->
                                 ex.authenticationEntryPoint(authenticationEntryPoint)
                                         .accessDeniedHandler(accessDeniedHandler))
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                // jwtAuthenticationFilter must be registered (anchored to a filter class Spring
+                // Security's FilterOrderRegistration already knows) before it can itself be used
+                // as the anchor below — reversing these two calls fails at startup with "The
+                // Filter class JwtAuthenticationFilter does not have a registered order".
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                // Correlation id must be resolved before authentication, so it's set even for
+                // requests that end up 401/403 — every response, success or failure, carries
+                // an X-Request-ID and every log line for the request (including the auth
+                // filter's own) has it in MDC.
+                .addFilterBefore(requestCorrelationFilter, JwtAuthenticationFilter.class);
         return http.build();
     }
 }

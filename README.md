@@ -23,6 +23,7 @@ turns the raw data into an SLA verdict and a recommended action.
   - [Quick Start (Docker Compose)](#quick-start-docker-compose)
   - [Local Development](#local-development)
 - [Configuration](#configuration)
+- [Logging &amp; Observability](#logging--observability)
 - [Testing &amp; Quality Gates](#testing--quality-gates)
 - [Security](#security)
 - [Troubleshooting](#troubleshooting)
@@ -258,6 +259,92 @@ environment for native/local runs.
 | `LLM_PRIMARY_PROVIDER`, `LLM_PRIMARY_MODEL` | ai_service (`ai/llm_client.py`)                    | see`ai/llm_client.py`                                                 |
 | `JWT_SECRET`                                  | backend-api                                          | dev-only fallback —**must** be overridden in any real deployment |
 | `AI_SERVICE_BASE_URL`                         | backend-api calling ai_service                       | `http://localhost:8001`                                               |
+
+## Logging & Observability
+
+Every service — Spring Boot, the three FastAPI/MCP processes, and Angular —
+logs through a single correlation id and a consistent set of default levels,
+so a request can be traced end to end from one id and a container's stdout
+never carries a secret.
+
+### Correlation id (`X-Request-ID`)
+
+- **backend-api** (`RequestCorrelationFilter`) reads an inbound `X-Request-ID`
+  or `X-Correlation-ID` header, or mints a UUID if neither is present. The
+  resolved id is put in SLF4J's MDC for the rest of the request, returned as
+  an `X-Request-ID` response header (on every response, including 401/403/500),
+  and becomes `ChatService`'s `traceId` — the same field docs/api_contracts.md
+  already defines for `POST /ai/query`, not a second, independent id.
+- **backend-api → ai_service**: the id is forwarded as an `X-Request-ID`
+  request header (`AiServiceConfig`'s `RestClient` interceptor) *and* as the
+  existing `traceId` JSON field — both carry the same value.
+- **ai_service** (`ai/logging_setup.py`'s `RequestContextMiddleware`) reads
+  that header (or `traceId` in the body, or mints its own) into a contextvar
+  that every log statement for the request — FastAPI's own handler, every
+  LangGraph node (`ai/graph/node_logging.py`), every tool call
+  (`ai_service/tools/*`, `ai/mcp_client.py`) — picks up automatically, and
+  echoes it back as `X-Request-ID` on the response.
+- **mock_apis** uses the same `RequestContextMiddleware`, so a call from
+  ai_service's tool layer into mock_apis is traceable the same way.
+- **mcp_server**: MCP's streamable-http/stdio transport has no per-call header
+  slot, and `ai/mcp_client.py` intentionally holds one persistent connection
+  per process rather than reconnecting per request (see its module docstring),
+  so the `X-Request-ID` does not currently cross that specific hop on the
+  wire. ai_service's own `dependency_call dependency=mcp_server ...` log lines
+  (which do carry the id) and mcp_server's `mcp_tool=... latency_ms=...` lines
+  can still be correlated by timestamp adjacency — a known limitation, not a
+  silent gap; see `ai/mcp_client.py` and `mcp_server/server.py`.
+- **Angular**: `LoggerService`'s HTTP interceptor
+  (`http-logging.interceptor.ts`) reads the same `X-Request-ID` off each
+  response (backend-api's `CorsConfig` exposes it via
+  `Access-Control-Expose-Headers`) and logs it alongside method/status/duration
+  at DEBUG, so a bug report's browser console line can be matched to the exact
+  server-side request.
+
+### Log format and levels
+
+| Service | Format | Where configured |
+|---|---|---|
+| backend-api | Key-value text via Logback: `timestamp level [thread] logger [requestId=..., userId=...] - message` | `backend-api/src/main/resources/logback-spring.xml`, `application.yml` |
+| ai_service / mcp_server / mock_apis | Key-value text: `timestamp level [thread] logger service=... [request_id=...] - message` | `ai/logging_setup.py` (`configure_logging`, called once per entrypoint) |
+| Angular | `[LEVEL] message` via `console.*`, gated by `environment.ts`'s `logLevel` | `LoggerService` |
+
+Default levels are the same shape everywhere: **INFO** for lifecycle events
+and request/dependency-call summaries, **WARN** for recoverable/unexpected
+conditions (a degraded tool call, a rejected auth attempt), **ERROR** with a
+full stack trace for unhandled exceptions, and **DEBUG** for diagnostic
+detail that is off by default (e.g. the exact SQL text in
+`ai_service/tools/db.py`, kept out of INFO specifically so it never lands in
+container stdout by default — see the comment there).
+
+### Enabling DEBUG locally
+
+- **backend-api**: set `LOG_LEVEL=DEBUG` (maps to `logging.level.com.nexchain.backend`
+  in `application.yml`) — third-party framework loggers stay at WARN
+  regardless, so this only affects this app's own code.
+- **Python services**: set `LOG_LEVEL=DEBUG` before starting `ai_service`,
+  `mcp_server`, or `mock_apis`. Same scoping: `httpx`, `chromadb`, and other
+  noisy third-party loggers are pinned to WARNING by `configure_logging`
+  regardless of this setting.
+- **Angular**: edit `logLevel` in `src/environments/environment.development.ts`
+  (used by `ng serve`/`ng test`) — never enable `debug` in
+  `environment.ts` (the production build), since DEBUG-level HTTP logs would
+  then reach every end user's browser console.
+
+Never enable DEBUG in a shared or production environment — several DEBUG
+statements exist specifically because their content (generated SQL, request
+identifiers) is appropriate for a developer's local terminal but not for a
+container's default log stream.
+
+### What is never logged
+
+Passwords, JWTs/access tokens, `Authorization`/`Cookie` headers, full LLM
+prompts/responses, and raw database rows are never logged at any level, in
+any service. Where a header or value might be sensitive,
+`ai.logging_setup.redact_headers` (Python) masks it before anything touches a
+log call; backend-api and Angular simply never pass those values to a logger
+in the first place. Auth outcomes are logged as `outcome=success`/`failure`
+with a username, never a password or token.
 
 ## Testing & Quality Gates
 

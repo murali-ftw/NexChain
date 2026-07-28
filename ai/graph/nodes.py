@@ -22,11 +22,13 @@ from ai.agents.text_to_sql_agent.db_boundary import (
 from ai.contracts import AgentNode, SLAStatus
 from ai.graph.api_boundary import get_shipment_status
 from ai.graph.entities import extract_order_no, extract_tracking_no
+from ai.graph.node_logging import log_node_execution
 from ai.graph.retry import call_with_retry
 from ai.graph.state import CoPilotState, CoPilotStateUpdate
 from ai.llm_client import LLMConfigError, LLMProviderError, generate
 
 
+@log_node_execution(AgentNode.KNOWLEDGE_BASE_AGENT.value)
 def knowledge_base_agent_node(state: CoPilotState) -> CoPilotStateUpdate:
     """For a MULTI_TOOL_QUERY, routing.py always sequences this node after
     text_to_sql_agent/api_status_agent (required_nodes() preserves
@@ -66,6 +68,7 @@ def knowledge_base_agent_node(state: CoPilotState) -> CoPilotStateUpdate:
     }
 
 
+@log_node_execution(AgentNode.TEXT_TO_SQL_AGENT.value)
 def text_to_sql_agent_node(state: CoPilotState) -> CoPilotStateUpdate:
     node = AgentNode.TEXT_TO_SQL_AGENT.value
     retry_count = dict(state.get("retry_count") or {})
@@ -110,6 +113,7 @@ def text_to_sql_agent_node(state: CoPilotState) -> CoPilotStateUpdate:
     }
 
 
+@log_node_execution(AgentNode.API_STATUS_AGENT.value)
 def api_status_agent_node(state: CoPilotState) -> CoPilotStateUpdate:
     """Resolves a tracking number two ways: directly from the query text
     (TRK-...), or — when the query only gives an order number, as the
@@ -154,6 +158,7 @@ def api_status_agent_node(state: CoPilotState) -> CoPilotStateUpdate:
     return {"api_result": result.model_dump(), "retry_count": retry_count}
 
 
+@log_node_execution(AgentNode.BUSINESS_RULE_AGENT.value)
 def business_rule_agent_node(state: CoPilotState) -> CoPilotStateUpdate:
     """P3.10 — SLA breach detection, delay calculation, escalation severity,
     and corrective-action selection, delegated to the pure, unit-tested rule
@@ -249,6 +254,7 @@ def business_rule_agent_node(state: CoPilotState) -> CoPilotStateUpdate:
     }
 
 
+@log_node_execution(AgentNode.FINAL_RESPONSE_AGENT.value)
 def final_response_agent_node(state: CoPilotState) -> CoPilotStateUpdate:
     """P3.11 — assembles the prose answer_text from whatever kb/sql/api/rule
     results this query gathered. The structured wire fields (order_status,
@@ -377,6 +383,7 @@ def _summarize_rows(rows: list[dict], limit: int = 5) -> str:
     return summary
 
 
+@log_node_execution(AgentNode.ERROR_HANDLER.value)
 def error_handler_node(state: CoPilotState) -> CoPilotStateUpdate:
     """Reached only when intent classification itself fails outright (no
     routable business_intent) — per-branch tool failures degrade

@@ -20,6 +20,16 @@ spring:
 server:
   port: 8080
 
+logging:
+  level:
+    root: INFO
+    # Override to DEBUG locally (env var, not a committed change) to see
+    # request/response bodies-adjacent diagnostic detail from this app's own
+    # code — never enable DEBUG here in a shared/production environment, since
+    # it is the level where request payload shapes and query parameters may
+    # surface. See README.md "Logging" for the full DEBUG-safety note.
+    com.nexchain.backend: ${LOG_LEVEL:INFO}
+
 app:
   cors:
     # Comma-separated list; Angular dev server default port. No wildcard.

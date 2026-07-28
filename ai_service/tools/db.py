@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from pathlib import Path
 
 import psycopg
@@ -90,6 +91,7 @@ def run_select(sql: str, params: tuple | None = None) -> list[dict]:
     # level everywhere in this stack, so logging it there would put PII in container
     # stdout by default (Day 13 QA: sensitive-logging finding).
     logger.debug("tool=%s sql=%s", TOOL, sql)
+    started = time.perf_counter()
     try:
         with (
             psycopg.connect(
@@ -101,17 +103,40 @@ def run_select(sql: str, params: tuple | None = None) -> list[dict]:
             conn.cursor() as cur,
         ):
             cur.execute(sql, params)
-            return cur.fetchall()
+            rows = cur.fetchall()
+            logger.info(
+                "dependency_call dependency=database tool=%s outcome=success "
+                "row_count=%d duration_ms=%.1f",
+                TOOL,
+                len(rows),
+                (time.perf_counter() - started) * 1000,
+            )
+            return rows
     except psycopg.OperationalError as exc:
+        logger.warning(
+            "dependency_call dependency=database tool=%s outcome=unreachable duration_ms=%.1f",
+            TOOL,
+            (time.perf_counter() - started) * 1000,
+        )
         raise ToolUnavailable(TOOL, f"cannot reach the database: {exc}") from exc
     except psycopg.errors.InsufficientPrivilege as exc:
         # The read-only role refused it. Permanent — the same query will be
         # refused every time, so this must NOT be retryable or the node wastes
         # its single retry (MAX_RETRIES_PER_NODE) on a guaranteed failure.
+        logger.warning(
+            "dependency_call dependency=database tool=%s outcome=permission_denied duration_ms=%.1f",
+            TOOL,
+            (time.perf_counter() - started) * 1000,
+        )
         raise ToolError(
             TOOL, f"permission denied: {exc}", retryable=False, status_code=403
         ) from exc
     except psycopg.Error as exc:
+        logger.warning(
+            "dependency_call dependency=database tool=%s outcome=query_failed duration_ms=%.1f",
+            TOOL,
+            (time.perf_counter() - started) * 1000,
+        )
         raise ToolUnavailable(TOOL, f"query failed: {exc}") from exc
 
 

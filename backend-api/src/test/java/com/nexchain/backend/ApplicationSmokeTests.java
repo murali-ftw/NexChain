@@ -1,5 +1,6 @@
 package com.nexchain.backend;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.matchesPattern;
@@ -109,6 +110,44 @@ class ApplicationSmokeTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"))
                 .andExpect(jsonPath("$.service").value("backend-api"));
+    }
+
+    @Test
+    void everyResponseCarriesAGeneratedRequestIdHeader() throws Exception {
+        mockMvc.perform(get("/api/health"))
+                .andExpect(status().isOk())
+                .andExpect(header().exists("X-Request-ID"));
+    }
+
+    @Test
+    void suppliedRequestIdIsEchoedBackUnchangedAndBecomesTheChatTraceId() throws Exception {
+        String callerRequestId = "caller-req-id-" + java.util.UUID.randomUUID();
+        MvcResult result =
+                mockMvc.perform(
+                                post("/api/chat")
+                                        .header("Authorization", "Bearer " + token)
+                                        .header("X-Request-ID", callerRequestId)
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content("""
+                                                {"query": "Is SKU-1001 in stock?"}
+                                                """))
+                        .andExpect(status().isOk())
+                        .andExpect(header().string("X-Request-ID", callerRequestId))
+                        .andReturn();
+
+        // The HTTP-level correlation id and the AI-pipeline traceId are the same value,
+        // not two independent ids (RequestCorrelationFilter / ChatService).
+        String body = result.getResponse().getContentAsString();
+        assertThat(objectMapper.readTree(body).get("traceId").asText()).isEqualTo(callerRequestId);
+    }
+
+    @Test
+    void unauthenticatedResponsesAlsoCarryARequestIdHeader() throws Exception {
+        // Correlation must survive even the failure paths (401/403), so a caller can still
+        // report an issue by request id even when the request never reached a controller.
+        mockMvc.perform(get("/api/chat/history"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().exists("X-Request-ID"));
     }
 
     @Test

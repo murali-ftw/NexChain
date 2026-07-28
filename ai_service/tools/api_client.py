@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from pathlib import Path
 
 import httpx
@@ -45,21 +46,28 @@ def _get(tool: str, path: str, timeout: float | None = None) -> dict:
     """One GET against the mock APIs, with every failure mode normalized.
 
     Returns the parsed JSON body, or raises ToolNotFound / ToolUnavailable.
+    Every outcome — success or failure — is logged with duration, so this is
+    the one place that needs to (each public wrapper below just calls this).
     """
     url = f"{base_url()}{path}"
+    started = time.perf_counter()
     try:
         response = httpx.get(url, timeout=timeout or timeout_seconds())
     except httpx.TimeoutException as exc:
+        _log_outcome(tool, started, "timeout")
         raise ToolUnavailable(
             tool, f"timed out after {timeout or timeout_seconds()}s"
         ) from exc
     except httpx.RequestError as exc:
         # Connection refused, DNS failure, etc. The service is simply not there.
+        _log_outcome(tool, started, "unreachable")
         raise ToolUnavailable(tool, f"cannot reach {url}: {exc}") from exc
 
     if response.status_code == 404:
+        _log_outcome(tool, started, "not_found", response.status_code)
         raise ToolNotFound(tool, _detail(response, default="not found"))
     if response.status_code >= 400:
+        _log_outcome(tool, started, "error", response.status_code)
         raise ToolUnavailable(
             tool,
             _detail(response, default=f"HTTP {response.status_code}"),
@@ -67,9 +75,26 @@ def _get(tool: str, path: str, timeout: float | None = None) -> dict:
         )
 
     try:
-        return response.json()
+        body = response.json()
     except ValueError as exc:
+        _log_outcome(tool, started, "bad_response", response.status_code)
         raise ToolUnavailable(tool, "upstream returned a non-JSON body") from exc
+    _log_outcome(tool, started, "success", response.status_code)
+    return body
+
+
+def _log_outcome(
+    tool: str, started: float, outcome: str, status_code: int | None = None
+) -> None:
+    duration_ms = (time.perf_counter() - started) * 1000
+    log = logger.info if outcome == "success" else logger.warning
+    log(
+        "dependency_call dependency=mock_apis tool=%s outcome=%s status_code=%s duration_ms=%.1f",
+        tool,
+        outcome,
+        status_code,
+        duration_ms,
+    )
 
 
 def _detail(response: httpx.Response, default: str) -> str:

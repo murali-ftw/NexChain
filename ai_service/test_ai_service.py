@@ -136,6 +136,41 @@ def test_snake_case_input_is_also_accepted() -> None:
     assert body["traceId"] == "t-1"
 
 
+# --- correlation id (RequestContextMiddleware + X-Request-ID) --------------
+
+
+def test_response_carries_an_x_request_id_header() -> None:
+    response = client.post("/ai/query", json={"query": "anything"})
+    assert response.headers["x-request-id"]
+
+
+def test_inbound_x_request_id_becomes_trace_id_when_body_omits_one() -> None:
+    """Spring Boot's RequestCorrelationFilter forwards its own X-Request-ID as
+    a header on every call here; when the JSON body doesn't separately set
+    traceId, the header value is what becomes it — one correlation id across
+    the hop, not two independent ones."""
+    response = client.post(
+        "/ai/query",
+        json={"query": "anything"},
+        headers={"X-Request-ID": "header-req-id-123"},
+    )
+    body = response.json()
+    assert body["traceId"] == "header-req-id-123"
+    assert response.headers["x-request-id"] == "header-req-id-123"
+
+
+def test_body_trace_id_wins_over_the_header_when_both_are_supplied() -> None:
+    """A caller that explicitly sets traceId in the request body (e.g. this
+    test suite, or a direct API consumer) gets that value honored, even if a
+    different X-Request-ID header is also present."""
+    response = client.post(
+        "/ai/query",
+        json={"query": "anything", "traceId": "body-trace-id"},
+        headers={"X-Request-ID": "header-req-id-should-lose"},
+    )
+    assert response.json()["traceId"] == "body-trace-id"
+
+
 # --- P2.10 Day 10: error-boundary stabilization -----------------------------
 #
 # The graph that raises these isn't wired in yet (P2.10, Day 11), so the two

@@ -6,6 +6,8 @@ import com.nexchain.backend.auth.dto.UserSummary;
 import com.nexchain.backend.auth.security.JwtService;
 import com.nexchain.backend.auth.user.UserAccount;
 import com.nexchain.backend.auth.user.UserStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
@@ -13,6 +15,8 @@ import org.springframework.stereotype.Service;
 /** Day 6 (P1.6) real authentication — replaces the Day 2 {@code mockLogin} stub. */
 @Service
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private final AuthenticationManager authenticationManager;
     private final UserStore userStore;
@@ -26,7 +30,8 @@ public class AuthService {
 
     /**
      * @throws org.springframework.security.core.AuthenticationException if the email/password
-     *     pair is invalid — handled centrally by {@code GlobalExceptionHandler} into a clean 401.
+     *     pair is invalid — handled centrally by {@code GlobalExceptionHandler} into a clean 401,
+     *     which logs the failed attempt. The password itself is never logged, here or there.
      */
     public LoginResponse login(LoginRequest request) {
         authenticationManager.authenticate(
@@ -40,6 +45,7 @@ public class AuthService {
                         .orElseThrow(() -> new IllegalStateException("Authenticated user vanished: " + request.email()));
 
         String token = jwtService.generateToken(account);
+        log.info("auth_login email={} role={} outcome=success", account.email(), account.role());
         var user = new UserSummary(account.id(), account.username(), account.email(), account.role());
         return new LoginResponse(token, null, "Bearer", jwtService.expirationSeconds(), user);
     }

@@ -26,6 +26,10 @@ public class CorsConfig implements WebMvcConfigurer {
         registry.addMapping("/api/**")
                 .allowedOrigins(allowedOrigins)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("*");
+                .allowedHeaders("*")
+                // Response headers are hidden from browser JS by default; this is the one
+                // exposed so Angular's LoggerService can tag its own client-side logs with
+                // the same correlation id the server used (RequestCorrelationFilter).
+                .exposedHeaders("X-Request-ID");
     }
 }

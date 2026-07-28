@@ -59,6 +59,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuthenticationException(
             AuthenticationException ex, HttpServletRequest request) {
+        // No email/password here: AuthenticationException carries no safe identifier worth
+        // logging (a bad email is itself unverified input) and the whole point of the generic
+        // client message is not to confirm which credential was wrong — the log shouldn't either.
+        log.warn("auth_login outcome=failure reason={}", ex.getClass().getSimpleName());
         return build(HttpStatus.UNAUTHORIZED, "Invalid email or password", request);
     }
 

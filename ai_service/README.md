@@ -86,6 +86,24 @@ and get enforced at **P2.9** (Day 9). Until then the `copilot_readonly` grant is
 what stands between a bad query and the data — which is why `run_select()` isn't
 exposed over HTTP by anything.
 
+## Logging
+
+Configured once at process start via `ai.logging_setup.configure_logging("ai_service")`
+(top of `main.py`) — every module below it just does `logging.getLogger(__name__)`.
+Full detail (correlation id propagation, redaction, per-service defaults) is in
+the root [README.md § Logging & Observability](../README.md#logging--observability);
+the parts specific to this service:
+
+- `RequestContextMiddleware` (`ai/logging_setup.py`) resolves the request's
+  `X-Request-ID`/`X-Correlation-ID` (or mints one), and `query()` reconciles it
+  with the `traceId` JSON field — whichever was supplied wins, and the result is
+  re-bound so every log line for that request (graph nodes, tool calls,
+  `mcp_client`) carries the same id via `ai.logging_setup.get_request_id()`.
+- Set `LOG_LEVEL=DEBUG` to see diagnostic detail (e.g. `ai_service/tools/db.py`'s
+  exact SQL text) — never in a shared environment, only a local terminal.
+- `/health` is logged at DEBUG, not INFO, so a polling health check doesn't
+  dominate the log.
+
 ## Running
 
 ```bash

@@ -45,10 +45,11 @@ from pydantic_core import to_jsonable_python
 
 from ai.agents.text_to_sql_agent.validator import validate_sql
 from ai.contracts import DBResult, InventoryRecord, OrderStatus, ShipmentStatus
+from ai.logging_setup import configure_logging
 from ai_service.tools import api_client, db
 from ai_service.tools.errors import ToolError, ToolNotFound
 
-logging.basicConfig(level=logging.INFO)
+configure_logging("mcp_server")
 logger = logging.getLogger(__name__)
 
 DEFAULT_PORT = 8002  # 4200 Angular, 8080 Spring Boot, 8000 mock_apis, 8001 ai_service
@@ -233,4 +234,13 @@ if __name__ == "__main__":
         raise ValueError(
             f"MCP_TRANSPORT must be one of {_VALID_TRANSPORTS}, got {transport!r}"
         )
-    mcp.run(transport=transport)  # type: ignore[arg-type]
+    logger.info(
+        "lifecycle event=starting service=mcp_server transport=%s host=%s port=%s",
+        transport,
+        mcp.settings.host,
+        mcp.settings.port,
+    )
+    try:
+        mcp.run(transport=transport)  # type: ignore[arg-type]
+    finally:
+        logger.info("lifecycle event=shutting_down service=mcp_server")

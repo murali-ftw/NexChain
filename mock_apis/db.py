@@ -13,7 +13,9 @@ accident.
 
 from __future__ import annotations
 
+import logging
 import os
+import time
 from pathlib import Path
 
 import psycopg
@@ -23,6 +25,8 @@ from psycopg.rows import dict_row
 _ENV_PATH = Path(__file__).resolve().parent / ".env"
 if _ENV_PATH.exists():
     load_dotenv(_ENV_PATH)
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_DSN = "postgresql://copilot_readonly@localhost:5432/nexchain"
 
@@ -41,10 +45,22 @@ def fetch_one(sql: str, params: tuple) -> dict | None:
     # ponytail: one connection per call. Fine for a mock service backing a demo;
     # switch to psycopg_pool.ConnectionPool if call volume ever makes it matter.
     """
+    started = time.perf_counter()
     try:
         with psycopg.connect(dsn(), row_factory=dict_row, connect_timeout=5) as conn:
             with conn.cursor() as cur:
                 cur.execute(sql, params)
-                return cur.fetchone()
+                row = cur.fetchone()
+                logger.info(
+                    "dependency_call dependency=database outcome=success "
+                    "found=%s duration_ms=%.1f",
+                    row is not None,
+                    (time.perf_counter() - started) * 1000,
+                )
+                return row
     except psycopg.OperationalError as exc:
+        logger.warning(
+            "dependency_call dependency=database outcome=unreachable duration_ms=%.1f",
+            (time.perf_counter() - started) * 1000,
+        )
         raise MockApiConfigError(f"Cannot reach the database: {exc}") from exc

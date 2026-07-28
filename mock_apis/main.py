@@ -21,24 +21,53 @@ seeded database.
 
 from __future__ import annotations
 
+import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
 from ai.contracts import InventoryRecord, OrderStatus, ShipmentStatus
+from ai.logging_setup import RequestContextMiddleware, configure_logging
 from mock_apis.db import MockApiConfigError, fetch_one
+
+configure_logging("mock_apis")
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    logger.info("lifecycle event=starting service=mock_apis")
+    yield
+    logger.info("lifecycle event=shutting_down service=mock_apis")
+
 
 app = FastAPI(
     title="NexChain Mock Enterprise APIs",
     description="Simulated ERP / shipment-tracking / inventory systems (P2.4).",
     version="1.0.0",
+    lifespan=_lifespan,
 )
+app.add_middleware(RequestContextMiddleware, service_name="mock_apis")
+logger.info("lifecycle event=ready service=mock_apis")
 
 
 @app.exception_handler(MockApiConfigError)
 async def _db_unavailable(_request, exc: MockApiConfigError) -> JSONResponse:
     """The API Status Agent must see a clean, typed failure rather than a
     stack trace when the backing system is down (tech-req §7)."""
+    logger.warning("dependency_call dependency=database outcome=unavailable detail=%s", exc)
     return JSONResponse(status_code=503, content={"detail": str(exc)})
+
+
+@app.exception_handler(Exception)
+async def _unhandled(_request, exc: Exception) -> JSONResponse:
+    """Same contract as ai_service's own catch-all: a bug here must not leak
+    a stack trace or internal detail to the caller — full detail is logged,
+    server-side only, and the client gets a clean generic 500."""
+    logger.exception("Unhandled error in mock_apis")
+    return JSONResponse(status_code=500, content={"detail": "Internal error"})
 
 
 def _iso(value) -> str | None:

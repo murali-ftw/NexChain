@@ -35,6 +35,7 @@ public class RestClientAiQueryClient implements AiQueryClient {
 
     @Override
     public AiQueryResult query(String query, String sessionId, String traceId, String userId) {
+        long startedAtMs = System.currentTimeMillis();
         try {
             AiServiceResponse body = restClient
                     .post()
@@ -42,9 +43,16 @@ public class RestClientAiQueryClient implements AiQueryClient {
                     .body(new AiServiceRequest(query, sessionId, traceId, userId))
                     .retrieve()
                     .body(AiServiceResponse.class);
+            long durationMs = System.currentTimeMillis() - startedAtMs;
             if (body == null) {
+                log.warn("ai_service traceId={} duration_ms={} returned an empty body", traceId, durationMs);
                 return degraded("AI service returned an empty response");
             }
+            log.info(
+                    "dependency_call dependency=ai_service traceId={} duration_ms={} outcome=success partial={}",
+                    traceId,
+                    durationMs,
+                    body.partial());
             return new AiQueryResult(
                     body.answerText(),
                     body.intent(),
@@ -63,17 +71,39 @@ public class RestClientAiQueryClient implements AiQueryClient {
                     body.agentsInvoked() != null ? body.agentsInvoked() : List.of(),
                     body.generatedSql());
         } catch (HttpStatusCodeException ex) {
-            log.warn("ai_service traceId={} returned {}: {}", traceId, ex.getStatusCode(), ex.getResponseBodyAsString());
+            long durationMs = System.currentTimeMillis() - startedAtMs;
+            log.warn(
+                    "dependency_call dependency=ai_service traceId={} duration_ms={} outcome=failure "
+                            + "status={} error_type={} detail={}",
+                    traceId,
+                    durationMs,
+                    ex.getStatusCode().value(),
+                    ex.getClass().getSimpleName(),
+                    ex.getResponseBodyAsString());
             return degraded("AI service error (%s): %s".formatted(ex.getStatusCode().value(), detailFrom(ex)));
         } catch (ResourceAccessException ex) {
             // Connection refused, DNS failure, or a read that exceeded readTimeoutMs
             // (AiServiceProperties) — the service is down, unreachable, or too slow.
             // ex.getMessage() (internal hostnames/ports) is logged, not returned to the
             // client — the warnings field is user-facing (Day 13 QA hardening).
-            log.warn("ai_service traceId={} unreachable/timed out: {}", traceId, ex.getMessage());
+            long durationMs = System.currentTimeMillis() - startedAtMs;
+            log.warn(
+                    "dependency_call dependency=ai_service traceId={} duration_ms={} outcome=failure "
+                            + "error_type={} detail={}",
+                    traceId,
+                    durationMs,
+                    ex.getClass().getSimpleName(),
+                    ex.getMessage());
             return degraded("AI service is unreachable or timed out.");
         } catch (Exception ex) {
-            log.error("ai_service traceId={} unexpected failure", traceId, ex);
+            long durationMs = System.currentTimeMillis() - startedAtMs;
+            log.error(
+                    "dependency_call dependency=ai_service traceId={} duration_ms={} outcome=failure "
+                            + "error_type={} unexpected failure",
+                    traceId,
+                    durationMs,
+                    ex.getClass().getSimpleName(),
+                    ex);
             return degraded("AI service call failed.");
         }
     }
