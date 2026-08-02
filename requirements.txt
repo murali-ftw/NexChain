@@ -18,7 +18,7 @@ langchain-core>=0.3
 mcp>=1.28.1
 
 # --- Knowledge Base / RAG ---
-chromadb>=0.5
+chromadb>=1.5.9
 sentence-transformers>=3.2
 
 # --- Relational database access ---
