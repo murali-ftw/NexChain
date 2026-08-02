@@ -4,7 +4,7 @@
 
 # --- AI service host ---
 fastapi>=0.115
-uvicorn[standard]>=0.32
+uvicorn[standard]>=0.52.0
 pydantic>=2.9
 
 # --- Agent orchestration ---
