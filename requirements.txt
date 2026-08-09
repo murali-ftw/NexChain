@@ -15,7 +15,7 @@ langchain-core>=0.3
 # --- MCP tool connectivity ---
 # Floor is the fix version for PYSEC-2026-1617 (DNS rebinding), CVE-2026-52869
 # (session hijack) and CVE-2026-59950 (WebSocket transport) — see mcp_server/server.py.
-mcp>=1.28.1
+mcp>=2.0.0
 
 # --- Knowledge Base / RAG ---
 chromadb>=0.5
