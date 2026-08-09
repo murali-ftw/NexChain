@@ -26,7 +26,7 @@ sqlalchemy>=2.0
 psycopg[binary]>=3.2
 
 # --- Text-to-SQL validation ---
-sqlglot>=25.0
+sqlglot>=30.15.0
 
 # --- Mock enterprise APIs / HTTP client ---
 httpx>=0.27
